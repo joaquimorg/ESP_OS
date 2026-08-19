@@ -10,8 +10,9 @@ static int cmd_version(int argc, char **argv)
         return -1;
     }
 
-    minios_shell_printf("%s %s\r\nAPI version %d\r\n",
-                        MINIOS_NAME, MINIOS_VERSION, MINIOS_API_VERSION);
+    minios_shell_printf("%s %s\r\n%s\r\nAPI version %d\r\n",
+                        MINIOS_NAME, MINIOS_VERSION, MINIOS_COPYRIGHT,
+                        MINIOS_API_VERSION);
     return 0;
 }
 

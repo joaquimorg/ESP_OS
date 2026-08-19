@@ -1,6 +1,7 @@
 #include "minios_kernel.h"
 
 #include "minios.h"
+#include "minios_config.h"
 #include "minios_console.h"
 #include "minios_shell.h"
 #include "minios_version.h"
@@ -13,9 +14,17 @@ void minios_kernel_start(void)
         return;
     }
 
-    minios_console_write_text(&console, "\r\n" MINIOS_NAME " " MINIOS_VERSION "\r\n");
+    minios_console_write_text(&console,
+                              "\r\n" MINIOS_NAME " " MINIOS_VERSION "\r\n"
+                              MINIOS_COPYRIGHT "\r\n");
     minios_console_write_text(&console, "[ OK ] Kernel\r\n");
     minios_console_write_text(&console, "[ OK ] Console\r\n");
+
+    if (os_config_init() != OS_CONFIG_OK) {
+        minios_console_write_text(&console, "[FAIL] Config\r\n");
+        return;
+    }
+    minios_console_write_text(&console, "[ OK ] Config\r\n");
 
     if (minios_shell_init(&console) != 0) {
         minios_console_write_text(&console, "[FAIL] Shell\r\n");

@@ -8,7 +8,7 @@ A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0 e 1 estão implementadas:
+As Milestones 0, 1 e 2 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -17,9 +17,10 @@ As Milestones 0 e 1 estão implementadas:
 - shell interativo;
 - parser sem alocação dinâmica;
 - command registry estático;
-- comandos básicos do sistema.
+- comandos básicos do sistema;
+- configuração persistente com backend NVS.
 
-Ainda não estão implementados Wi-Fi, filesystem, configuração persistente, módulos, aplicações externas ou carregamento ELF.
+Ainda não estão implementados Wi-Fi, filesystem, módulos, aplicações externas ou carregamento ELF.
 
 ## Arquitetura
 
@@ -42,9 +43,9 @@ Ainda não estão implementados Wi-Fi, filesystem, configuração persistente, m
 Princípios atuais:
 
 - `main.c` contém apenas o arranque do kernel;
-- kernel, console, shell e API são componentes ESP-IDF separados;
+- kernel, configuração, console, shell e API são componentes ESP-IDF separados;
 - o shell utiliza `minios_console_t` e não depende diretamente da UART;
-- dependências ESP-IDF e FreeRTOS ficam confinadas à camada de implementação da API;
+- dependências ESP-IDF e FreeRTOS ficam confinadas às camadas de implementação dos componentes;
 - cada comando está isolado e é adicionado através do command registry;
 - não são utilizadas alocações dinâmicas pelo código MiniOS atual;
 - todos os buffers e registries têm limites explícitos.
@@ -62,6 +63,7 @@ ESP_OS/
 │   └── main.c
 └── components/
     ├── minios_api/
+    ├── minios_config/
     ├── minios_console/
     ├── minios_kernel/
     └── minios_shell/
@@ -76,8 +78,10 @@ Depois do arranque, o sistema apresenta:
 
 ```text
 MiniOS 0.01
+Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
+[ OK ] Config
 [ OK ] Shell
 
 Type 'help' for available commands.
@@ -96,6 +100,18 @@ Comandos disponíveis:
 | `uptime` | Mostra o tempo desde o arranque |
 | `reboot` | Reinicia o microcontrolador |
 | `clear` | Limpa um terminal compatível com sequências ANSI |
+| `config` | Gere configuração persistente em NVS |
+
+Operações de configuração:
+
+```text
+config set wifi.ssid MyNetwork
+config get wifi.ssid
+config list
+config delete wifi.ssid
+```
+
+As chaves aceitam letras, números, `.`, `_` e `-`, até 63 caracteres. Os valores têm no máximo 127 caracteres e, devido às limitações atuais do parser, não podem conter espaços.
 
 Limites atuais do shell:
 
@@ -184,7 +200,7 @@ Identificador SPDX: `Apache-2.0`.
 | --- | --- | --- |
 | 0 | Bootstrap, kernel e console UART | Concluída |
 | 1 | Shell, parser, registry e comandos básicos | Concluída |
-| 2 | Configuração persistente com NVS | Planeada |
+| 2 | Configuração persistente com NVS | Concluída |
 | 3 | Filesystem LittleFS | Planeada |
 | 4–5 | Device Manager e hardware | Planeadas |
 | 6–7 | Rede e console remoto | Planeadas |
@@ -204,7 +220,7 @@ The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0 and 1 are implemented:
+Milestones 0, 1, and 2 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -213,9 +229,10 @@ Milestones 0 and 1 are implemented:
 - interactive shell;
 - allocation-free parser;
 - static command registry;
-- basic system commands.
+- basic system commands;
+- persistent configuration backed by NVS.
 
-Wi-Fi, filesystems, persistent configuration, modules, external applications, and ELF loading are intentionally not implemented yet.
+Wi-Fi, filesystems, modules, external applications, and ELF loading are intentionally not implemented yet.
 
 ### Architecture
 
@@ -238,9 +255,9 @@ Wi-Fi, filesystems, persistent configuration, modules, external applications, an
 Current design principles:
 
 - `main.c` only starts the kernel;
-- kernel, console, shell, and API are separate ESP-IDF components;
+- kernel, configuration, console, shell, and API are separate ESP-IDF components;
 - the shell uses `minios_console_t` and has no direct UART dependency;
-- ESP-IDF and FreeRTOS dependencies are confined to the API implementation layer;
+- ESP-IDF and FreeRTOS dependencies are confined to component implementation layers;
 - every command is isolated and added through the command registry;
 - the current MiniOS code does not perform dynamic allocations;
 - all buffers and registries have explicit limits.
@@ -258,6 +275,7 @@ ESP_OS/
 │   └── main.c
 └── components/
     ├── minios_api/
+    ├── minios_config/
     ├── minios_console/
     ├── minios_kernel/
     └── minios_shell/
@@ -272,8 +290,10 @@ The system displays the following after boot:
 
 ```text
 MiniOS 0.01
+Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
+[ OK ] Config
 [ OK ] Shell
 
 Type 'help' for available commands.
@@ -292,6 +312,18 @@ Available commands:
 | `uptime` | Shows the time elapsed since boot |
 | `reboot` | Restarts the microcontroller |
 | `clear` | Clears a terminal that supports ANSI sequences |
+| `config` | Manages persistent configuration in NVS |
+
+Configuration operations:
+
+```text
+config set wifi.ssid MyNetwork
+config get wifi.ssid
+config list
+config delete wifi.ssid
+```
+
+Keys accept letters, digits, `.`, `_`, and `-`, up to 63 characters. Values are limited to 127 characters and, because of the current parser limitations, cannot contain spaces.
 
 Current shell limits:
 
@@ -380,7 +412,7 @@ SPDX identifier: `Apache-2.0`.
 | --- | --- | --- |
 | 0 | Bootstrap, kernel, and UART console | Complete |
 | 1 | Shell, parser, registry, and basic commands | Complete |
-| 2 | Persistent configuration using NVS | Planned |
+| 2 | Persistent configuration using NVS | Complete |
 | 3 | LittleFS filesystem | Planned |
 | 4–5 | Device Manager and hardware | Planned |
 | 6–7 | Networking and remote console | Planned |

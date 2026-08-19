@@ -28,6 +28,7 @@ static const minios_command_t *find_command(const char *name)
 static int register_builtin_commands(void)
 {
     if ((minios_cmd_help_register() != 0) ||
+        (minios_cmd_config_register() != 0) ||
         (minios_cmd_version_register() != 0) ||
         (minios_cmd_info_register() != 0) ||
         (minios_cmd_mem_register() != 0) ||

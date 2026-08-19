@@ -3,6 +3,7 @@ idf_component_register(
         "shell.c"
         "shell_parser.c"
         "commands/cmd_clear.c"
+        "commands/cmd_config.c"
         "commands/cmd_help.c"
         "commands/cmd_info.c"
         "commands/cmd_mem.c"
@@ -11,5 +12,5 @@ idf_component_register(
         "commands/cmd_version.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
-    REQUIRES minios_console minios_api
+    REQUIRES minios_console minios_api minios_config
 )
