@@ -198,13 +198,19 @@ Identificador SPDX: `Apache-2.0`.
 
 | Milestone | Objetivo | Estado |
 | --- | --- | --- |
-| 0 | Bootstrap, kernel e console UART | Concluída |
+| 0 | Bootstrap, kernel e console UART/USB Serial-JTAG | Concluída |
 | 1 | Shell, parser, registry e comandos básicos | Concluída |
 | 2 | Configuração persistente com NVS | Concluída |
-| 3 | Filesystem LittleFS | Planeada |
-| 4–5 | Device Manager e hardware | Planeadas |
-| 6–7 | Rede e console remoto | Planeadas |
-| 8–12 | Init scripts, módulos, aplicações, ELF e packages | Futuras |
+| 3 | LittleFS e comandos de filesystem | Próxima |
+| 4 | Device Manager | Planeada |
+| 5 | GPIO, I²C e SPI | Planeada |
+| 6 | Wi-Fi, ping e configuração de rede | Planeada |
+| 7 | Shell remota por TCP | Planeada |
+| 8 | Script de arranque `/boot/startup.rc` | Futura |
+| 9 | Gestão de módulos compilados | Futura |
+| 10 | Gestão de aplicações e processos | Futura |
+| 11 | Carregamento de aplicações ELF | Futura |
+| 12 | Package manager e instalação via rede | Futura |
 
 O desenvolvimento deve continuar milestone a milestone, preservando o desacoplamento entre componentes e a utilização previsível de memória.
 
@@ -410,12 +416,18 @@ SPDX identifier: `Apache-2.0`.
 
 | Milestone | Goal | Status |
 | --- | --- | --- |
-| 0 | Bootstrap, kernel, and UART console | Complete |
+| 0 | Bootstrap, kernel, and UART/USB Serial-JTAG console | Complete |
 | 1 | Shell, parser, registry, and basic commands | Complete |
 | 2 | Persistent configuration using NVS | Complete |
-| 3 | LittleFS filesystem | Planned |
-| 4–5 | Device Manager and hardware | Planned |
-| 6–7 | Networking and remote console | Planned |
-| 8–12 | Init scripts, modules, applications, ELF, and packages | Future |
+| 3 | LittleFS and filesystem commands | Next |
+| 4 | Device Manager | Planned |
+| 5 | GPIO, I²C, and SPI | Planned |
+| 6 | Wi-Fi, ping, and network configuration | Planned |
+| 7 | Remote TCP shell | Planned |
+| 8 | `/boot/startup.rc` boot script | Future |
+| 9 | Compiled module management | Future |
+| 10 | Application and process management | Future |
+| 11 | ELF application loading | Future |
+| 12 | Package manager and network installation | Future |
 
 Development should continue one milestone at a time while preserving component decoupling and predictable memory usage.
