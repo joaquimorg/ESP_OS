@@ -90,8 +90,17 @@ typedef struct {
 } os_memory_info_t;
 
 typedef struct {
+    size_t total;
+    size_t used;
+    size_t free;
+} os_fs_space_info_t;
+
+typedef struct {
     const char *target;
     uint32_t cpu_cores;
+    size_t flash_total;
+    size_t app_partition_total;
+    size_t app_partition_used;
 } os_system_info_t;
 
 typedef enum {
@@ -155,6 +164,7 @@ int os_config_delete(const char *key);
 int os_config_list(os_config_list_callback_t callback, void *context);
 
 int os_fs_init(void);
+int os_fs_get_space_info(os_fs_space_info_t *info);
 int os_fs_resolve_path(const char *path, char *resolved, size_t length);
 int os_fs_getcwd(char *path, size_t length);
 int os_fs_chdir(const char *path);

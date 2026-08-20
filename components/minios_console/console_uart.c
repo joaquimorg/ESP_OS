@@ -1,5 +1,6 @@
 #include "minios_console.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <unistd.h>
 
@@ -19,7 +20,14 @@ static int uart_read(void *context, char *buffer, size_t length)
      * reaching the shell.
      */
     received = read(STDIN_FILENO, buffer, length);
-    return (received < 0) ? -1 : (int)received;
+    if (received < 0) {
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK) ||
+            (errno == EINTR)) {
+            return 0;
+        }
+        return -1;
+    }
+    return (int)received;
 }
 
 static int uart_write(void *context, const char *buffer, size_t length)

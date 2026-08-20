@@ -5,6 +5,7 @@
 static int cmd_info(int argc, char **argv)
 {
     os_system_info_t system;
+    os_fs_space_info_t storage;
 
     (void)argv;
     if (argc != 1) {
@@ -19,6 +20,32 @@ static int cmd_info(int argc, char **argv)
     minios_shell_printf("CPU cores    : %lu\r\n", (unsigned long)system.cpu_cores);
     minios_shell_printf("Free memory  : %lu KB\r\n",
                         (unsigned long)(os_free_memory() / 1024U));
+    if (system.flash_total > 0U) {
+        minios_shell_printf("Flash total  : %lu KB\r\n",
+                            (unsigned long)(system.flash_total / 1024U));
+    } else {
+        minios_shell_printf("Flash total  : unavailable\r\n");
+    }
+    if ((system.app_partition_total > 0U) &&
+        (system.app_partition_used <= system.app_partition_total)) {
+        minios_shell_printf(
+            "Firmware     : %lu KB used, %lu KB free (%lu KB partition)\r\n",
+            (unsigned long)(system.app_partition_used / 1024U),
+            (unsigned long)((system.app_partition_total -
+                             system.app_partition_used) / 1024U),
+            (unsigned long)(system.app_partition_total / 1024U));
+    } else {
+        minios_shell_printf("Firmware     : unavailable\r\n");
+    }
+    if (os_fs_get_space_info(&storage) == OS_FS_OK) {
+        minios_shell_printf(
+            "Storage      : %lu KB used, %lu KB free (%lu KB partition)\r\n",
+            (unsigned long)(storage.used / 1024U),
+            (unsigned long)(storage.free / 1024U),
+            (unsigned long)(storage.total / 1024U));
+    } else {
+        minios_shell_printf("Storage      : unavailable\r\n");
+    }
     return 0;
 }
 

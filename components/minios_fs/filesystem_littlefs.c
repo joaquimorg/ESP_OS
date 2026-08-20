@@ -191,6 +191,24 @@ int os_fs_init(void)
     return OS_FS_OK;
 }
 
+int os_fs_get_space_info(os_fs_space_info_t *info)
+{
+    size_t total;
+    size_t used;
+
+    if (!fs_initialized || (info == NULL)) {
+        return OS_FS_INVALID_ARGUMENT;
+    }
+    if (esp_littlefs_info(FS_PARTITION_LABEL, &total, &used) != ESP_OK) {
+        return OS_FS_ERROR;
+    }
+
+    info->total = total;
+    info->used = used;
+    info->free = (used <= total) ? total - used : 0U;
+    return OS_FS_OK;
+}
+
 int os_fs_getcwd(char *path, size_t length)
 {
     size_t required;

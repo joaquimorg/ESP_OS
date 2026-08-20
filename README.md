@@ -267,7 +267,7 @@ binário desceu de cerca de 895 KiB para 295 KiB, poupando cerca de 599 KiB.
 ## Consola remota TCP
 
 Com o ESP32 ligado à rede, obtém o endereço através de `ifconfig` e abre uma
-ligação TCP raw para a porta 2323:
+ligação para a porta TCP 2323 com `nc`, `ncat` ou um cliente Telnet:
 
 ```bash
 nc 192.168.1.50 2323
@@ -275,8 +275,10 @@ nc 192.168.1.50 2323
 
 A sessão remota usa os mesmos comandos da UART. A UART continua operacional e
 um comando é executado de cada vez para evitar que a saída de duas sessões se
-misture. O servidor aceita um cliente TCP remoto de cada vez e volta a aguardar
-uma nova ligação quando o cliente fecha a sessão.
+misture. O transporte deteta e filtra automaticamente a negociação Telnet,
+mantendo compatibilidade com clientes TCP raw. O servidor aceita um cliente
+remoto de cada vez e volta a aguardar uma nova ligação quando o cliente fecha a
+sessão.
 
 A funcionalidade pode ser configurada em:
 
@@ -662,8 +664,8 @@ build, the binary dropped from about 895 KiB to 295 KiB, saving about 599 KiB.
 
 ### TCP remote console
 
-Once the ESP32 is connected, obtain its address with `ifconfig` and open a raw
-TCP connection to port 2323:
+Once the ESP32 is connected, obtain its address with `ifconfig` and connect to
+TCP port 2323 with `nc`, `ncat`, or a Telnet client:
 
 ```bash
 nc 192.168.1.50 2323
@@ -671,8 +673,9 @@ nc 192.168.1.50 2323
 
 The remote session exposes the same commands as UART. UART remains available,
 and commands are serialized so output from two sessions cannot be mixed. The
-server accepts one remote TCP client at a time and listens again after the
-client disconnects.
+transport automatically detects and filters Telnet negotiation while remaining
+compatible with raw TCP clients. The server accepts one remote client at a time
+and listens again after the client disconnects.
 
 Configure it under:
 
