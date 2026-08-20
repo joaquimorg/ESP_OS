@@ -6,7 +6,7 @@
 
 #define MINIOS_SHELL_MAX_LINE 128
 #define MINIOS_SHELL_MAX_ARGS 36
-#define MINIOS_SHELL_MAX_COMMANDS 20
+#define MINIOS_SHELL_MAX_COMMANDS 24
 
 typedef int (*minios_command_handler_t)(int argc, char **argv);
 

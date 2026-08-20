@@ -22,7 +22,7 @@ uint32_t os_uptime_ms(void)
     return (uint32_t)(esp_timer_get_time() / 1000LL);
 }
 
-void os_sleep(uint32_t milliseconds)
+void minios_sleep(uint32_t milliseconds)
 {
     vTaskDelay(pdMS_TO_TICKS(milliseconds));
 }

@@ -1313,6 +1313,10 @@ ping
 ifconfig
 ```
 
+A inclusão da rede deve ser controlada por `CONFIG_MINIOS_ENABLE_NETWORK`. Em
+builds sem rede, os drivers Wi-Fi, comandos de rede e `/dev/wifi0` não devem
+entrar no firmware final.
+
 ---
 
 ## Milestone 7 — Remote Console
@@ -1327,13 +1331,18 @@ Mesma shell utilizada na UART.
 
 ---
 
-## Milestone 8 — Init Scripts
+## Milestone 8 — Shell Scripting and Init Scripts
 
-Implementar:
+Implementar um motor de scripts limitado, incluindo:
 
 ```text
+run <file>
+source <file>
 /boot/startup.rc
 ```
+
+Suportar inicialmente comentários, variáveis, `sleep`, condicionais simples,
+repetição com limites explícitos e `exit`, sem alocação dinâmica.
 
 ---
 

@@ -8,7 +8,7 @@ A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3, 4 e 5 estão implementadas:
+As Milestones 0, 1, 2, 3, 4, 5 e 6 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -21,9 +21,11 @@ As Milestones 0, 1, 2, 3, 4 e 5 estão implementadas:
 - configuração persistente com backend NVS;
 - filesystem LittleFS e comandos de ficheiros;
 - Device Manager com registry estático;
-- HAL e comandos para GPIO, I²C e SPI.
+- HAL e comandos para GPIO, I²C e SPI;
+- Wi-Fi station, configuração IPv4, DNS e ping ICMP.
 
-Ainda não estão implementados Wi-Fi, módulos, aplicações externas ou carregamento ELF.
+Ainda não estão implementados shell TCP, scripts, módulos, aplicações externas
+ou carregamento ELF.
 
 ## Arquitetura
 
@@ -72,6 +74,7 @@ ESP_OS/
     ├── minios_fs/
     ├── minios_hal/
     ├── minios_kernel/
+    ├── minios_net/
     └── minios_shell/
         └── commands/
 ```
@@ -89,6 +92,7 @@ Copyright 2026 joaquim.org
 [ OK ] Console
 [ OK ] HAL
 [ OK ] Config
+[ OK ] Network
 [ OK ] Filesystem
 [ OK ] Device Manager
 [ OK ] Shell
@@ -114,6 +118,9 @@ Comandos disponíveis:
 | `gpio` | Configura, lê e escreve pinos GPIO |
 | `i2c` | Configura e pesquisa o bus I²C |
 | `spi` | Configura e transfere bytes por SPI |
+| `wifi` | Pesquisa, liga e desliga redes Wi-Fi |
+| `ifconfig` | Mostra a configuração IPv4 de `wifi0` |
+| `ping` | Envia pedidos ICMP echo |
 | `ls` | Lista o conteúdo de um diretório |
 | `cd` | Muda o diretório atual |
 | `pwd` | Mostra o diretório atual |
@@ -160,7 +167,7 @@ ls /dev
 ```
 
 O registry aceita até oito dispositivos sem alocação dinâmica e contém `uart0`,
-`gpio`, `i2c0` e `spi0`. O comando `ls` combina o conteúdo persistente do
+`gpio`, `i2c0`, `spi0` e `wifi0`. O comando `ls` combina o conteúdo persistente do
 LittleFS com os dispositivos virtuais quando lista `/dev`. O namespace `/dev`
 é reservado: comandos de ficheiros não criam, alteram ou removem dispositivos.
 
@@ -205,12 +212,63 @@ não podem ser reconfigurados. Os buses reservam os seus pinos quando são
 inicializados. A pesquisa I²C é feita a 100 kHz pelo driver ESP-IDF e requer
 pull-ups externos adequados para funcionamento fiável.
 
+## Rede
+
+O MiniOS funciona em modo Wi-Fi station. Uma ligação temporária pode ser feita
+diretamente; sem argumentos, `wifi connect` usa as credenciais guardadas em
+NVS:
+
+```text
+wifi scan
+wifi connect MinhaRede palavra-passe
+wifi status
+ifconfig
+ping 1.1.1.1
+ping example.com 3
+wifi disconnect
+```
+
+Para guardar uma rede e ativar a ligação durante o arranque:
+
+```text
+config set wifi.ssid MinhaRede
+config set wifi.password palavra-passe
+config set wifi.autoconnect true
+wifi connect
+```
+
+`wifi.autoconnect` aceita `1`, `true` ou `yes`. Uma falha de inicialização ou
+ligação Wi-Fi é não fatal e o shell continua disponível. O scan apresenta no
+máximo 20 redes e `ping` aceita entre 1 e 10 pedidos. `config get` e
+`config list` ocultam o valor de `wifi.password`.
+
+### Incluir ou excluir a rede
+
+A rede é uma opção de build e está ativa por omissão nos targets que suportam
+Wi-Fi. Pode ser desativada em:
+
+```text
+idf.py menuconfig
+MiniOS -> Enable Wi-Fi networking
+```
+
+Também está disponível um perfil sem rede:
+
+```bash
+idf.py -B build-no-network -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.no-network.defaults" build
+```
+
+Com `CONFIG_MINIOS_ENABLE_NETWORK` desativada, `wifi`, `ifconfig`, `ping` e
+`/dev/wifi0` não são incluídos. O arranque apresenta `Network disabled` e as
+dependências Wi-Fi não entram no firmware final. No build ESP32-C3 medido, o
+binário desceu de cerca de 895 KiB para 295 KiB, poupando cerca de 599 KiB.
+
 Limites atuais do shell:
 
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  20
+#define MINIOS_SHELL_MAX_COMMANDS  24
 ```
 
 O parser suporta apenas comandos e argumentos separados por espaços. Pipes, redirecionamento, wildcards e expansão de variáveis ainda não são suportados.
@@ -239,7 +297,8 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 293 KiB com a configuração ESP-IDF atual.
+O build atual gera `build/minios.bin` e ocupa aproximadamente 895 KiB com a
+configuração ESP-IDF/Wi-Fi atual.
 
 ## Adicionar um comando
 
@@ -296,9 +355,9 @@ Identificador SPDX: `Apache-2.0`.
 | 3 | LittleFS e comandos de filesystem | Concluída |
 | 4 | Device Manager | Concluída |
 | 5 | GPIO, I²C e SPI | Concluída |
-| 6 | Wi-Fi, ping e configuração de rede | Próxima |
+| 6 | Wi-Fi, ping e configuração de rede | Concluída |
 | 7 | Shell remota por TCP | Planeada |
-| 8 | Script de arranque `/boot/startup.rc` | Futura |
+| 8 | Shell scripting e `/boot/startup.rc` | Futura |
 | 9 | Gestão de módulos compilados | Futura |
 | 10 | Gestão de aplicações e processos | Futura |
 | 11 | Carregamento de aplicações ELF | Futura |
@@ -318,7 +377,7 @@ The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, 4, and 5 are implemented:
+Milestones 0, 1, 2, 3, 4, 5, and 6 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -331,9 +390,11 @@ Milestones 0, 1, 2, 3, 4, and 5 are implemented:
 - persistent configuration backed by NVS;
 - LittleFS and filesystem commands;
 - a static Device Manager registry;
-- HAL and commands for GPIO, I²C, and SPI.
+- HAL and commands for GPIO, I²C, and SPI;
+- Wi-Fi station mode, IPv4 configuration, DNS, and ICMP ping.
 
-Wi-Fi, modules, external applications, and ELF loading are intentionally not implemented yet.
+TCP shell, scripts, modules, external applications, and ELF loading are not
+implemented yet.
 
 ### Architecture
 
@@ -382,6 +443,7 @@ ESP_OS/
     ├── minios_fs/
     ├── minios_hal/
     ├── minios_kernel/
+    ├── minios_net/
     └── minios_shell/
         └── commands/
 ```
@@ -424,6 +486,9 @@ Available commands:
 | `gpio` | Configures, reads, and writes GPIO pins |
 | `i2c` | Configures and scans the I²C bus |
 | `spi` | Configures and transfers bytes over SPI |
+| `wifi` | Scans, connects, and disconnects Wi-Fi networks |
+| `ifconfig` | Shows the IPv4 configuration for `wifi0` |
+| `ping` | Sends ICMP echo requests |
 | `ls` | Lists directory contents |
 | `cd` | Changes the working directory |
 | `pwd` | Prints the working directory |
@@ -470,7 +535,7 @@ ls /dev
 ```
 
 The registry holds up to eight devices without dynamic allocation and contains
-`uart0`, `gpio`, `i2c0`, and `spi0`. When listing `/dev`, `ls` combines persistent
+`uart0`, `gpio`, `i2c0`, `spi0`, and `wifi0`. When listing `/dev`, `ls` combines persistent
 LittleFS entries with virtual devices. The `/dev` namespace is reserved, so
 filesystem commands cannot create, modify, or remove devices.
 
@@ -514,12 +579,62 @@ be reconfigured. Buses reserve their pins when initialized. The ESP-IDF driver
 scans I²C at 100 kHz and requires suitable external pull-ups for reliable
 operation.
 
+### Network
+
+MiniOS operates in Wi-Fi station mode. A temporary connection can be made
+directly; without arguments, `wifi connect` uses credentials stored in NVS:
+
+```text
+wifi scan
+wifi connect MyNetwork password
+wifi status
+ifconfig
+ping 1.1.1.1
+ping example.com 3
+wifi disconnect
+```
+
+To save a network and enable connection during boot:
+
+```text
+config set wifi.ssid MyNetwork
+config set wifi.password password
+config set wifi.autoconnect true
+wifi connect
+```
+
+`wifi.autoconnect` accepts `1`, `true`, or `yes`. Wi-Fi initialization or
+connection failure is non-fatal and the shell remains available. Scans show at
+most 20 networks and `ping` accepts between 1 and 10 requests. `config get` and
+`config list` redact the value of `wifi.password`.
+
+#### Including or excluding networking
+
+Networking is a build option and defaults to enabled on targets with Wi-Fi.
+It can be disabled under:
+
+```text
+idf.py menuconfig
+MiniOS -> Enable Wi-Fi networking
+```
+
+A network-free build profile is also provided:
+
+```bash
+idf.py -B build-no-network -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.no-network.defaults" build
+```
+
+When `CONFIG_MINIOS_ENABLE_NETWORK` is disabled, `wifi`, `ifconfig`, `ping`,
+and `/dev/wifi0` are omitted. Boot reports `Network disabled` and the Wi-Fi
+dependencies are not linked into the final firmware. In the measured ESP32-C3
+build, the binary dropped from about 895 KiB to 295 KiB, saving about 599 KiB.
+
 Current shell limits:
 
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  20
+#define MINIOS_SHELL_MAX_COMMANDS  24
 ```
 
 The parser currently supports commands and space-separated arguments only. Pipes, redirection, wildcards, and variable expansion are not supported yet.
@@ -548,7 +663,8 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 293 KiB with the current ESP-IDF configuration.
+The current build generates `build/minios.bin` and uses approximately 895 KiB
+with the current ESP-IDF/Wi-Fi configuration.
 
 ### Adding a command
 
@@ -605,9 +721,9 @@ SPDX identifier: `Apache-2.0`.
 | 3 | LittleFS and filesystem commands | Complete |
 | 4 | Device Manager | Complete |
 | 5 | GPIO, I²C, and SPI | Complete |
-| 6 | Wi-Fi, ping, and network configuration | Next |
+| 6 | Wi-Fi, ping, and network configuration | Complete |
 | 7 | Remote TCP shell | Planned |
-| 8 | `/boot/startup.rc` boot script | Future |
+| 8 | Shell scripting and `/boot/startup.rc` | Future |
 | 9 | Compiled module management | Future |
 | 10 | Application and process management | Future |
 | 11 | ELF application loading | Future |

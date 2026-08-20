@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "sdkconfig.h"
+
 static const minios_device_t *device_registry[OS_DEVICE_MAX];
 static size_t device_count;
 static bool device_initialized;
@@ -40,6 +42,17 @@ static const minios_device_t spi0_device = {
     .capabilities = OS_DEVICE_CAP_CONTROL | OS_DEVICE_CAP_READ |
                     OS_DEVICE_CAP_WRITE,
 };
+
+#if CONFIG_MINIOS_ENABLE_NETWORK
+static const minios_device_t wifi0_device = {
+    .name = "wifi0",
+    .device_class = OS_DEVICE_CLASS_CONTROLLER,
+    .driver = "esp-wifi-sta",
+    .description = "Wi-Fi station network interface",
+    .capabilities = OS_DEVICE_CAP_CONTROL | OS_DEVICE_CAP_READ |
+                    OS_DEVICE_CAP_WRITE,
+};
+#endif
 
 static bool device_name_is_valid(const char *name)
 {
@@ -118,7 +131,11 @@ int os_device_init(void)
     if ((os_device_register(&uart0_device) != OS_DEVICE_OK) ||
         (os_device_register(&gpio_device) != OS_DEVICE_OK) ||
         (os_device_register(&i2c0_device) != OS_DEVICE_OK) ||
-        (os_device_register(&spi0_device) != OS_DEVICE_OK)) {
+        (os_device_register(&spi0_device) != OS_DEVICE_OK)
+#if CONFIG_MINIOS_ENABLE_NETWORK
+        || (os_device_register(&wifi0_device) != OS_DEVICE_OK)
+#endif
+        ) {
         device_count = 0U;
         device_initialized = false;
         return OS_DEVICE_ERROR;

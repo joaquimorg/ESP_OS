@@ -1996,6 +1996,12 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 # end of Wi-Fi Provisioning Manager
 
 #
+# MiniOS
+#
+CONFIG_MINIOS_ENABLE_NETWORK=y
+# end of MiniOS
+
+#
 # LittleFS
 #
 # CONFIG_LITTLEFS_SDMMC_SUPPORT is not set

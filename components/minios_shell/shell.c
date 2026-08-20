@@ -7,6 +7,7 @@
 #include "minios.h"
 #include "minios_fs.h"
 #include "shell_internal.h"
+#include "sdkconfig.h"
 
 #define MINIOS_SHELL_FORMAT_BUFFER 192
 
@@ -37,6 +38,11 @@ static int register_builtin_commands(void)
         (minios_cmd_reboot_register() != 0) ||
         (minios_cmd_clear_register() != 0) ||
         (minios_cmd_device_register() != 0) ||
+#if CONFIG_MINIOS_ENABLE_NETWORK
+        (minios_cmd_wifi_register() != 0) ||
+        (minios_cmd_ifconfig_register() != 0) ||
+        (minios_cmd_ping_register() != 0) ||
+#endif
         (minios_cmd_gpio_register() != 0) ||
         (minios_cmd_i2c_register() != 0) ||
         (minios_cmd_spi_register() != 0) ||

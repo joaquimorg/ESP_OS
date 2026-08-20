@@ -1,0 +1,2 @@
+# MiniOS profile for builds that do not require Wi-Fi networking.
+# CONFIG_MINIOS_ENABLE_NETWORK is not set

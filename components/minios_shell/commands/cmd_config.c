@@ -5,6 +5,11 @@
 
 #include "minios_config.h"
 
+static int config_value_is_sensitive(const char *key)
+{
+    return strcmp(key, "wifi.password") == 0;
+}
+
 static int report_config_error(int result, const char *key)
 {
     if (result == OS_CONFIG_NOT_FOUND) {
@@ -25,7 +30,8 @@ static int list_config(const char *key, const char *value, void *context)
 {
     size_t *count = (size_t *)context;
 
-    minios_shell_printf("%s=%s\r\n", key, value);
+    minios_shell_printf("%s=%s\r\n", key,
+                        config_value_is_sensitive(key) ? "<redacted>" : value);
     ++(*count);
     return 0;
 }
@@ -44,7 +50,9 @@ static int cmd_config_get(int argc, char **argv)
     if (result != OS_CONFIG_OK) {
         return report_config_error(result, argv[2]);
     }
-    minios_shell_printf("%s=%s\r\n", argv[2], value);
+    minios_shell_printf("%s=%s\r\n", argv[2],
+                        config_value_is_sensitive(argv[2]) ? "<redacted>"
+                                                          : value);
     return 0;
 }
 
