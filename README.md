@@ -8,7 +8,7 @@ A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3 e 4 estão implementadas:
+As Milestones 0, 1, 2, 3, 4 e 5 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -20,7 +20,8 @@ As Milestones 0, 1, 2, 3 e 4 estão implementadas:
 - comandos básicos do sistema;
 - configuração persistente com backend NVS;
 - filesystem LittleFS e comandos de ficheiros;
-- Device Manager com registry estático para `uart0` e `gpio`.
+- Device Manager com registry estático;
+- HAL e comandos para GPIO, I²C e SPI.
 
 Ainda não estão implementados Wi-Fi, módulos, aplicações externas ou carregamento ELF.
 
@@ -69,6 +70,7 @@ ESP_OS/
     ├── minios_console/
     ├── minios_device/
     ├── minios_fs/
+    ├── minios_hal/
     ├── minios_kernel/
     └── minios_shell/
         └── commands/
@@ -85,6 +87,7 @@ MiniOS 0.01
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
+[ OK ] HAL
 [ OK ] Config
 [ OK ] Filesystem
 [ OK ] Device Manager
@@ -108,6 +111,9 @@ Comandos disponíveis:
 | `clear` | Limpa um terminal compatível com sequências ANSI |
 | `config` | Gere configuração persistente em NVS |
 | `device` | Lista e descreve os dispositivos registados |
+| `gpio` | Configura, lê e escreve pinos GPIO |
+| `i2c` | Configura e pesquisa o bus I²C |
+| `spi` | Configura e transfere bytes por SPI |
 | `ls` | Lista o conteúdo de um diretório |
 | `cd` | Muda o diretório atual |
 | `pwd` | Mostra o diretório atual |
@@ -153,16 +159,49 @@ device info /dev/gpio
 ls /dev
 ```
 
-O registry aceita até oito dispositivos sem alocação dinâmica. `uart0` anuncia
-capacidades de leitura/escrita da consola e `gpio` a capacidade de controlo; as
-operações de GPIO pertencem ao Milestone 5. O comando `ls` combina o conteúdo
-persistente do LittleFS com os dispositivos virtuais quando lista `/dev`.
+O registry aceita até oito dispositivos sem alocação dinâmica e contém `uart0`,
+`gpio`, `i2c0` e `spi0`. O comando `ls` combina o conteúdo persistente do
+LittleFS com os dispositivos virtuais quando lista `/dev`.
+
+## Hardware
+
+GPIO:
+
+```text
+gpio mode 8 out
+gpio write 8 1
+gpio mode 3 pullup
+gpio read 3
+```
+
+I²C usa por omissão SDA 8, SCL 9 e 100 kHz. Os pinos podem ser alterados antes
+da pesquisa:
+
+```text
+i2c status
+i2c scan
+i2c init 6 7
+i2c scan
+```
+
+SPI usa por omissão MOSI 6, MISO 5, SCLK 4, CS 7, modo 0 e 1 MHz:
+
+```text
+spi status
+spi transfer 9f 00 00 00
+spi init 6 5 4 7 4000000
+```
+
+Os buses só reservam os pinos quando são usados. No ESP32-C3 atual, GPIO12–17
+(flash) e GPIO18–19 (USB Serial/JTAG) são protegidos contra reconfiguração. A
+pesquisa I²C é feita a 100 kHz pelo driver ESP-IDF e requer pull-ups externos
+adequados para funcionamento fiável.
 
 Limites atuais do shell:
 
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
-#define MINIOS_SHELL_MAX_ARGS      12
+#define MINIOS_SHELL_MAX_ARGS      36
 #define MINIOS_SHELL_MAX_COMMANDS  20
 ```
 
@@ -192,7 +231,7 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 235 KiB com a configuração ESP-IDF atual.
+O build atual gera `build/minios.bin` e ocupa aproximadamente 293 KiB com a configuração ESP-IDF atual.
 
 ## Adicionar um comando
 
@@ -248,8 +287,8 @@ Identificador SPDX: `Apache-2.0`.
 | 2 | Configuração persistente com NVS | Concluída |
 | 3 | LittleFS e comandos de filesystem | Concluída |
 | 4 | Device Manager | Concluída |
-| 5 | GPIO, I²C e SPI | Próxima |
-| 6 | Wi-Fi, ping e configuração de rede | Planeada |
+| 5 | GPIO, I²C e SPI | Concluída |
+| 6 | Wi-Fi, ping e configuração de rede | Próxima |
 | 7 | Shell remota por TCP | Planeada |
 | 8 | Script de arranque `/boot/startup.rc` | Futura |
 | 9 | Gestão de módulos compilados | Futura |
@@ -271,7 +310,7 @@ The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, and 4 are implemented:
+Milestones 0, 1, 2, 3, 4, and 5 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -283,7 +322,8 @@ Milestones 0, 1, 2, 3, and 4 are implemented:
 - basic system commands;
 - persistent configuration backed by NVS;
 - LittleFS and filesystem commands;
-- a static Device Manager registry for `uart0` and `gpio`.
+- a static Device Manager registry;
+- HAL and commands for GPIO, I²C, and SPI.
 
 Wi-Fi, modules, external applications, and ELF loading are intentionally not implemented yet.
 
@@ -332,6 +372,7 @@ ESP_OS/
     ├── minios_console/
     ├── minios_device/
     ├── minios_fs/
+    ├── minios_hal/
     ├── minios_kernel/
     └── minios_shell/
         └── commands/
@@ -348,6 +389,7 @@ MiniOS 0.01
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
+[ OK ] HAL
 [ OK ] Config
 [ OK ] Filesystem
 [ OK ] Device Manager
@@ -371,6 +413,9 @@ Available commands:
 | `clear` | Clears a terminal that supports ANSI sequences |
 | `config` | Manages persistent configuration in NVS |
 | `device` | Lists and describes registered devices |
+| `gpio` | Configures, reads, and writes GPIO pins |
+| `i2c` | Configures and scans the I²C bus |
+| `spi` | Configures and transfers bytes over SPI |
 | `ls` | Lists directory contents |
 | `cd` | Changes the working directory |
 | `pwd` | Prints the working directory |
@@ -416,16 +461,48 @@ device info /dev/gpio
 ls /dev
 ```
 
-The registry holds up to eight devices without dynamic allocation. `uart0`
-advertises console read/write capabilities and `gpio` advertises control;
-actual GPIO operations belong to Milestone 5. When listing `/dev`, `ls` combines
-persistent LittleFS entries with virtual devices.
+The registry holds up to eight devices without dynamic allocation and contains
+`uart0`, `gpio`, `i2c0`, and `spi0`. When listing `/dev`, `ls` combines persistent
+LittleFS entries with virtual devices.
+
+### Hardware
+
+GPIO:
+
+```text
+gpio mode 8 out
+gpio write 8 1
+gpio mode 3 pullup
+gpio read 3
+```
+
+I²C defaults to SDA 8, SCL 9, and 100 kHz. Pins can be changed before scanning:
+
+```text
+i2c status
+i2c scan
+i2c init 6 7
+i2c scan
+```
+
+SPI defaults to MOSI 6, MISO 5, SCLK 4, CS 7, mode 0, and 1 MHz:
+
+```text
+spi status
+spi transfer 9f 00 00 00
+spi init 6 5 4 7 4000000
+```
+
+Buses only claim their pins when first used. On the current ESP32-C3 target,
+GPIO12–17 (flash) and GPIO18–19 (USB Serial/JTAG) are protected from
+reconfiguration. The ESP-IDF driver scans I²C at 100 kHz and requires suitable
+external pull-ups for reliable operation.
 
 Current shell limits:
 
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
-#define MINIOS_SHELL_MAX_ARGS      12
+#define MINIOS_SHELL_MAX_ARGS      36
 #define MINIOS_SHELL_MAX_COMMANDS  20
 ```
 
@@ -455,7 +532,7 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 235 KiB with the current ESP-IDF configuration.
+The current build generates `build/minios.bin` and uses approximately 293 KiB with the current ESP-IDF configuration.
 
 ### Adding a command
 
@@ -511,8 +588,8 @@ SPDX identifier: `Apache-2.0`.
 | 2 | Persistent configuration using NVS | Complete |
 | 3 | LittleFS and filesystem commands | Complete |
 | 4 | Device Manager | Complete |
-| 5 | GPIO, I²C, and SPI | Next |
-| 6 | Wi-Fi, ping, and network configuration | Planned |
+| 5 | GPIO, I²C, and SPI | Complete |
+| 6 | Wi-Fi, ping, and network configuration | Next |
 | 7 | Remote TCP shell | Planned |
 | 8 | `/boot/startup.rc` boot script | Future |
 | 9 | Compiled module management | Future |

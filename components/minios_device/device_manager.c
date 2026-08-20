@@ -23,6 +23,24 @@ static const minios_device_t gpio_device = {
     .capabilities = OS_DEVICE_CAP_CONTROL,
 };
 
+static const minios_device_t i2c0_device = {
+    .name = "i2c0",
+    .device_class = OS_DEVICE_CLASS_CONTROLLER,
+    .driver = "i2c-master",
+    .description = "I2C master controller",
+    .capabilities = OS_DEVICE_CAP_CONTROL | OS_DEVICE_CAP_READ |
+                    OS_DEVICE_CAP_WRITE,
+};
+
+static const minios_device_t spi0_device = {
+    .name = "spi0",
+    .device_class = OS_DEVICE_CLASS_CONTROLLER,
+    .driver = "spi-master",
+    .description = "SPI master controller",
+    .capabilities = OS_DEVICE_CAP_CONTROL | OS_DEVICE_CAP_READ |
+                    OS_DEVICE_CAP_WRITE,
+};
+
 static bool device_name_is_valid(const char *name)
 {
     size_t length;
@@ -98,7 +116,9 @@ int os_device_init(void)
     device_initialized = true;
 
     if ((os_device_register(&uart0_device) != OS_DEVICE_OK) ||
-        (os_device_register(&gpio_device) != OS_DEVICE_OK)) {
+        (os_device_register(&gpio_device) != OS_DEVICE_OK) ||
+        (os_device_register(&i2c0_device) != OS_DEVICE_OK) ||
+        (os_device_register(&spi0_device) != OS_DEVICE_OK)) {
         device_count = 0U;
         device_initialized = false;
         return OS_DEVICE_ERROR;

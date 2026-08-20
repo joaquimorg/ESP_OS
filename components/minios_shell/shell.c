@@ -37,6 +37,9 @@ static int register_builtin_commands(void)
         (minios_cmd_reboot_register() != 0) ||
         (minios_cmd_clear_register() != 0) ||
         (minios_cmd_device_register() != 0) ||
+        (minios_cmd_gpio_register() != 0) ||
+        (minios_cmd_i2c_register() != 0) ||
+        (minios_cmd_spi_register() != 0) ||
         (minios_cmd_ls_register() != 0) ||
         (minios_cmd_cd_register() != 0) ||
         (minios_cmd_pwd_register() != 0) ||

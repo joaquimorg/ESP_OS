@@ -5,6 +5,7 @@
 #include "minios_console.h"
 #include "minios_device.h"
 #include "minios_fs.h"
+#include "minios_hal.h"
 #include "minios_shell.h"
 #include "minios_version.h"
 
@@ -21,6 +22,12 @@ void minios_kernel_start(void)
                               MINIOS_COPYRIGHT "\r\n");
     minios_console_write_text(&console, "[ OK ] Kernel\r\n");
     minios_console_write_text(&console, "[ OK ] Console\r\n");
+
+    if (minios_hal_init() != MINIOS_HAL_OK) {
+        minios_console_write_text(&console, "[FAIL] HAL\r\n");
+        return;
+    }
+    minios_console_write_text(&console, "[ OK ] HAL\r\n");
 
     if (os_config_init() != OS_CONFIG_OK) {
         minios_console_write_text(&console, "[FAIL] Config\r\n");
