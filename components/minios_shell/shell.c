@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "minios.h"
+#include "minios_fs.h"
 #include "shell_internal.h"
 
 #define MINIOS_SHELL_FORMAT_BUFFER 192
@@ -34,7 +35,14 @@ static int register_builtin_commands(void)
         (minios_cmd_mem_register() != 0) ||
         (minios_cmd_uptime_register() != 0) ||
         (minios_cmd_reboot_register() != 0) ||
-        (minios_cmd_clear_register() != 0)) {
+        (minios_cmd_clear_register() != 0) ||
+        (minios_cmd_ls_register() != 0) ||
+        (minios_cmd_cd_register() != 0) ||
+        (minios_cmd_pwd_register() != 0) ||
+        (minios_cmd_cat_register() != 0) ||
+        (minios_cmd_echo_register() != 0) ||
+        (minios_cmd_mkdir_register() != 0) ||
+        (minios_cmd_rm_register() != 0)) {
         return -1;
     }
     return 0;
@@ -81,6 +89,11 @@ const minios_command_t *minios_shell_command_at(size_t index)
 int minios_shell_write(const char *text)
 {
     return minios_console_write_text(shell_console, text);
+}
+
+int minios_shell_write_bytes(const char *data, size_t length)
+{
+    return minios_console_write(shell_console, data, length);
 }
 
 int minios_shell_printf(const char *format, ...)
@@ -165,7 +178,14 @@ void minios_shell_run(void)
             }
             length = 0U;
             discard_line = 0;
-            minios_shell_write("minios:/> ");
+            {
+                char cwd[OS_FS_PATH_MAX];
+                if (os_fs_getcwd(cwd, sizeof(cwd)) == OS_FS_OK) {
+                    minios_shell_printf("minios:%s> ", cwd);
+                } else {
+                    minios_shell_write("minios:?> ");
+                }
+            }
             continue;
         }
 

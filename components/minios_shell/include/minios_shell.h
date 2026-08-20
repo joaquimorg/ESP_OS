@@ -22,5 +22,6 @@ int minios_shell_register(const minios_command_t *command);
 size_t minios_shell_command_count(void);
 const minios_command_t *minios_shell_command_at(size_t index);
 int minios_shell_write(const char *text);
+int minios_shell_write_bytes(const char *data, size_t length);
 int minios_shell_printf(const char *format, ...);
 void minios_shell_run(void);

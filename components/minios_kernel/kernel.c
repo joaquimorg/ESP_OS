@@ -3,6 +3,7 @@
 #include "minios.h"
 #include "minios_config.h"
 #include "minios_console.h"
+#include "minios_fs.h"
 #include "minios_shell.h"
 #include "minios_version.h"
 
@@ -25,6 +26,12 @@ void minios_kernel_start(void)
         return;
     }
     minios_console_write_text(&console, "[ OK ] Config\r\n");
+
+    if (os_fs_init() != OS_FS_OK) {
+        minios_console_write_text(&console, "[FAIL] Filesystem\r\n");
+        return;
+    }
+    minios_console_write_text(&console, "[ OK ] Filesystem\r\n");
 
     if (minios_shell_init(&console) != 0) {
         minios_console_write_text(&console, "[FAIL] Shell\r\n");

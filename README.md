@@ -8,7 +8,7 @@ A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1 e 2 estão implementadas:
+As Milestones 0, 1, 2 e 3 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -18,9 +18,10 @@ As Milestones 0, 1 e 2 estão implementadas:
 - parser sem alocação dinâmica;
 - command registry estático;
 - comandos básicos do sistema;
-- configuração persistente com backend NVS.
+- configuração persistente com backend NVS;
+- filesystem LittleFS e comandos de ficheiros.
 
-Ainda não estão implementados Wi-Fi, filesystem, módulos, aplicações externas ou carregamento ELF.
+Ainda não estão implementados Wi-Fi, módulos, aplicações externas ou carregamento ELF.
 
 ## Arquitetura
 
@@ -43,7 +44,7 @@ Ainda não estão implementados Wi-Fi, filesystem, módulos, aplicações extern
 Princípios atuais:
 
 - `main.c` contém apenas o arranque do kernel;
-- kernel, configuração, console, shell e API são componentes ESP-IDF separados;
+- kernel, configuração, filesystem, console, shell e API são componentes ESP-IDF separados;
 - o shell utiliza `minios_console_t` e não depende diretamente da UART;
 - dependências ESP-IDF e FreeRTOS ficam confinadas às camadas de implementação dos componentes;
 - cada comando está isolado e é adicionado através do command registry;
@@ -65,6 +66,7 @@ ESP_OS/
     ├── minios_api/
     ├── minios_config/
     ├── minios_console/
+    ├── minios_fs/
     ├── minios_kernel/
     └── minios_shell/
         └── commands/
@@ -82,6 +84,7 @@ Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
 [ OK ] Config
+[ OK ] Filesystem
 [ OK ] Shell
 
 Type 'help' for available commands.
@@ -101,6 +104,13 @@ Comandos disponíveis:
 | `reboot` | Reinicia o microcontrolador |
 | `clear` | Limpa um terminal compatível com sequências ANSI |
 | `config` | Gere configuração persistente em NVS |
+| `ls` | Lista o conteúdo de um diretório |
+| `cd` | Muda o diretório atual |
+| `pwd` | Mostra o diretório atual |
+| `cat` | Mostra o conteúdo de um ficheiro |
+| `echo` | Escreve texto num ficheiro |
+| `mkdir` | Cria um diretório |
+| `rm` | Remove um ficheiro ou diretório vazio |
 
 Operações de configuração:
 
@@ -112,6 +122,23 @@ config delete wifi.ssid
 ```
 
 As chaves aceitam letras, números, `.`, `_` e `-`, até 63 caracteres. Os valores têm no máximo 127 caracteres e, devido às limitações atuais do parser, não podem conter espaços.
+
+O LittleFS surge como `/` no MiniOS. No primeiro arranque são criados `/bin`,
+`/boot`, `/dev`, `/etc`, `/home`, `/modules`, `/tmp` e `/var`:
+
+```text
+mkdir /home/demo
+cd /home/demo
+echo hello note.txt
+echo world >> note.txt
+cat note.txt
+ls
+pwd
+rm note.txt
+```
+
+`echo <text> <file>` e `>` substituem o conteúdo; `>>` acrescenta. O texto está
+limitado a um argumento enquanto o parser não suportar aspas.
 
 Limites atuais do shell:
 
@@ -147,7 +174,7 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 195 KiB com a configuração ESP-IDF atual.
+O build atual gera `build/minios.bin` e ocupa aproximadamente 233 KiB com a configuração ESP-IDF atual.
 
 ## Adicionar um comando
 
@@ -201,8 +228,8 @@ Identificador SPDX: `Apache-2.0`.
 | 0 | Bootstrap, kernel e console UART/USB Serial-JTAG | Concluída |
 | 1 | Shell, parser, registry e comandos básicos | Concluída |
 | 2 | Configuração persistente com NVS | Concluída |
-| 3 | LittleFS e comandos de filesystem | Próxima |
-| 4 | Device Manager | Planeada |
+| 3 | LittleFS e comandos de filesystem | Concluída |
+| 4 | Device Manager | Próxima |
 | 5 | GPIO, I²C e SPI | Planeada |
 | 6 | Wi-Fi, ping e configuração de rede | Planeada |
 | 7 | Shell remota por TCP | Planeada |
@@ -226,7 +253,7 @@ The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, and 2 are implemented:
+Milestones 0, 1, 2, and 3 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -236,9 +263,10 @@ Milestones 0, 1, and 2 are implemented:
 - allocation-free parser;
 - static command registry;
 - basic system commands;
-- persistent configuration backed by NVS.
+- persistent configuration backed by NVS;
+- LittleFS and filesystem commands.
 
-Wi-Fi, filesystems, modules, external applications, and ELF loading are intentionally not implemented yet.
+Wi-Fi, modules, external applications, and ELF loading are intentionally not implemented yet.
 
 ### Architecture
 
@@ -261,7 +289,7 @@ Wi-Fi, filesystems, modules, external applications, and ELF loading are intentio
 Current design principles:
 
 - `main.c` only starts the kernel;
-- kernel, configuration, console, shell, and API are separate ESP-IDF components;
+- kernel, configuration, filesystem, console, shell, and API are separate ESP-IDF components;
 - the shell uses `minios_console_t` and has no direct UART dependency;
 - ESP-IDF and FreeRTOS dependencies are confined to component implementation layers;
 - every command is isolated and added through the command registry;
@@ -283,6 +311,7 @@ ESP_OS/
     ├── minios_api/
     ├── minios_config/
     ├── minios_console/
+    ├── minios_fs/
     ├── minios_kernel/
     └── minios_shell/
         └── commands/
@@ -300,6 +329,7 @@ Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
 [ OK ] Config
+[ OK ] Filesystem
 [ OK ] Shell
 
 Type 'help' for available commands.
@@ -319,6 +349,13 @@ Available commands:
 | `reboot` | Restarts the microcontroller |
 | `clear` | Clears a terminal that supports ANSI sequences |
 | `config` | Manages persistent configuration in NVS |
+| `ls` | Lists directory contents |
+| `cd` | Changes the working directory |
+| `pwd` | Prints the working directory |
+| `cat` | Displays a file |
+| `echo` | Writes text to a file |
+| `mkdir` | Creates a directory |
+| `rm` | Removes a file or empty directory |
 
 Configuration operations:
 
@@ -330,6 +367,23 @@ config delete wifi.ssid
 ```
 
 Keys accept letters, digits, `.`, `_`, and `-`, up to 63 characters. Values are limited to 127 characters and, because of the current parser limitations, cannot contain spaces.
+
+LittleFS appears as `/` in MiniOS. On first boot, `/bin`, `/boot`, `/dev`,
+`/etc`, `/home`, `/modules`, `/tmp`, and `/var` are created:
+
+```text
+mkdir /home/demo
+cd /home/demo
+echo hello note.txt
+echo world >> note.txt
+cat note.txt
+ls
+pwd
+rm note.txt
+```
+
+`echo <text> <file>` and `>` replace the contents; `>>` appends. Text is limited
+to one argument until the parser supports quoted strings.
 
 Current shell limits:
 
@@ -365,7 +419,7 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 195 KiB with the current ESP-IDF configuration.
+The current build generates `build/minios.bin` and uses approximately 233 KiB with the current ESP-IDF configuration.
 
 ### Adding a command
 
@@ -419,8 +473,8 @@ SPDX identifier: `Apache-2.0`.
 | 0 | Bootstrap, kernel, and UART/USB Serial-JTAG console | Complete |
 | 1 | Shell, parser, registry, and basic commands | Complete |
 | 2 | Persistent configuration using NVS | Complete |
-| 3 | LittleFS and filesystem commands | Next |
-| 4 | Device Manager | Planned |
+| 3 | LittleFS and filesystem commands | Complete |
+| 4 | Device Manager | Next |
 | 5 | GPIO, I²C, and SPI | Planned |
 | 6 | Wi-Fi, ping, and network configuration | Planned |
 | 7 | Remote TCP shell | Planned |
