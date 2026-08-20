@@ -5,7 +5,7 @@
 
 #define MINIOS_API_VERSION 2
 #define MINIOS_NAME "MiniOS"
-#define MINIOS_VERSION "0.01"
+#define MINIOS_VERSION "0.70"
 #define MINIOS_COPYRIGHT "Copyright 2026 joaquim.org"
 
 #define OS_CONFIG_KEY_MAX_LENGTH 63

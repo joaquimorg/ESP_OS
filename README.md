@@ -4,7 +4,7 @@
 
 MiniOS é um pequeno sistema operativo/runtime modular para microcontroladores ESP32, desenvolvido em C sobre ESP-IDF e FreeRTOS. O projeto inspira-se em conceitos do CP/M e Unix, adaptados às limitações e necessidades de um microcontrolador.
 
-A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
+A versão atual é a **MiniOS 0.70**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
@@ -87,7 +87,7 @@ O documento [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) contém a arquitetura compl
 Depois do arranque, o sistema apresenta:
 
 ```text
-MiniOS 0.01
+MiniOS 0.70
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -405,7 +405,7 @@ O desenvolvimento deve continuar milestone a milestone, preservando o desacoplam
 
 MiniOS is a small modular operating system/runtime for ESP32 microcontrollers, written in C on top of ESP-IDF and FreeRTOS. It takes inspiration from CP/M and Unix concepts while adapting them to the constraints and requirements of a microcontroller.
 
-The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
+The current release is **MiniOS 0.70**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
@@ -488,7 +488,7 @@ See [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) for the complete architecture, desi
 The system displays the following after boot:
 
 ```text
-MiniOS 0.01
+MiniOS 0.70
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
