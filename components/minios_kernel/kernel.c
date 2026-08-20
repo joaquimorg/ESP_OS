@@ -9,9 +9,13 @@
 #include "minios_fs.h"
 #include "minios_hal.h"
 #include "minios_net.h"
+#include "minios_remote.h"
 #include "minios_shell.h"
 #include "minios_version.h"
 #include "sdkconfig.h"
+
+#define MINIOS_STRINGIFY_VALUE(value) #value
+#define MINIOS_STRINGIFY(value) MINIOS_STRINGIFY_VALUE(value)
 
 void minios_kernel_start(void)
 {
@@ -82,6 +86,17 @@ void minios_kernel_start(void)
     }
 
     minios_console_write_text(&console, "[ OK ] Shell\r\n\r\n");
+#if CONFIG_MINIOS_ENABLE_REMOTE_CONSOLE
+    if (minios_remote_console_start() == MINIOS_REMOTE_OK) {
+        minios_console_write_text(&console, "[ OK ] Remote console TCP port "
+                                  MINIOS_STRINGIFY(
+                                      CONFIG_MINIOS_REMOTE_CONSOLE_PORT)
+                                  "\r\n\r\n");
+    } else {
+        minios_console_write_text(&console,
+                                  "[WARN] Remote console unavailable\r\n\r\n");
+    }
+#endif
     minios_shell_run();
 }
 

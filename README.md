@@ -8,7 +8,7 @@ A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3, 4, 5 e 6 estão implementadas:
+As Milestones 0, 1, 2, 3, 4, 5, 6 e 7 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -22,10 +22,11 @@ As Milestones 0, 1, 2, 3, 4, 5 e 6 estão implementadas:
 - filesystem LittleFS e comandos de ficheiros;
 - Device Manager com registry estático;
 - HAL e comandos para GPIO, I²C e SPI;
-- Wi-Fi station, configuração IPv4, DNS e ping ICMP.
+- Wi-Fi station, configuração IPv4, DNS e ping ICMP;
+- shell remota TCP com a mesma command registry da consola UART.
 
-Ainda não estão implementados shell TCP, scripts, módulos, aplicações externas
-ou carregamento ELF.
+Ainda não estão implementados scripts, módulos, aplicações externas ou
+carregamento ELF.
 
 ## Arquitetura
 
@@ -255,13 +256,42 @@ MiniOS -> Enable Wi-Fi networking
 Também está disponível um perfil sem rede:
 
 ```bash
-idf.py -B build-no-network -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.no-network.defaults" build
+idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.no-network.defaults" build
 ```
 
 Com `CONFIG_MINIOS_ENABLE_NETWORK` desativada, `wifi`, `ifconfig`, `ping` e
 `/dev/wifi0` não são incluídos. O arranque apresenta `Network disabled` e as
 dependências Wi-Fi não entram no firmware final. No build ESP32-C3 medido, o
 binário desceu de cerca de 895 KiB para 295 KiB, poupando cerca de 599 KiB.
+
+## Consola remota TCP
+
+Com o ESP32 ligado à rede, obtém o endereço através de `ifconfig` e abre uma
+ligação TCP raw para a porta 2323:
+
+```bash
+nc 192.168.1.50 2323
+```
+
+A sessão remota usa os mesmos comandos da UART. A UART continua operacional e
+um comando é executado de cada vez para evitar que a saída de duas sessões se
+misture. O servidor aceita um cliente TCP remoto de cada vez e volta a aguardar
+uma nova ligação quando o cliente fecha a sessão.
+
+A funcionalidade pode ser configurada em:
+
+```text
+idf.py menuconfig
+MiniOS remote console -> Enable TCP remote console
+```
+
+`CONFIG_MINIOS_REMOTE_CONSOLE_PORT` define a porta e
+`CONFIG_MINIOS_REMOTE_CONSOLE_STACK_SIZE` define a stack da task. A consola
+remota depende de `CONFIG_MINIOS_ENABLE_NETWORK`; não é compilada no perfil sem
+rede.
+
+Aviso: esta primeira versão usa TCP sem autenticação nem encriptação. Deve ser
+ativada apenas em redes de confiança e nunca exposta diretamente à Internet.
 
 Limites atuais do shell:
 
@@ -356,7 +386,7 @@ Identificador SPDX: `Apache-2.0`.
 | 4 | Device Manager | Concluída |
 | 5 | GPIO, I²C e SPI | Concluída |
 | 6 | Wi-Fi, ping e configuração de rede | Concluída |
-| 7 | Shell remota por TCP | Planeada |
+| 7 | Shell remota por TCP | Concluída |
 | 8 | Shell scripting e `/boot/startup.rc` | Futura |
 | 9 | Gestão de módulos compilados | Futura |
 | 10 | Gestão de aplicações e processos | Futura |
@@ -377,7 +407,7 @@ The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, 4, 5, and 6 are implemented:
+Milestones 0, 1, 2, 3, 4, 5, 6, and 7 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -391,10 +421,11 @@ Milestones 0, 1, 2, 3, 4, 5, and 6 are implemented:
 - LittleFS and filesystem commands;
 - a static Device Manager registry;
 - HAL and commands for GPIO, I²C, and SPI;
-- Wi-Fi station mode, IPv4 configuration, DNS, and ICMP ping.
+- Wi-Fi station mode, IPv4 configuration, DNS, and ICMP ping;
+- a TCP remote shell sharing the UART command registry.
 
-TCP shell, scripts, modules, external applications, and ELF loading are not
-implemented yet.
+Scripts, modules, external applications, and ELF loading are not implemented
+yet.
 
 ### Architecture
 
@@ -621,13 +652,42 @@ MiniOS -> Enable Wi-Fi networking
 A network-free build profile is also provided:
 
 ```bash
-idf.py -B build-no-network -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.no-network.defaults" build
+idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.no-network.defaults" build
 ```
 
 When `CONFIG_MINIOS_ENABLE_NETWORK` is disabled, `wifi`, `ifconfig`, `ping`,
 and `/dev/wifi0` are omitted. Boot reports `Network disabled` and the Wi-Fi
 dependencies are not linked into the final firmware. In the measured ESP32-C3
 build, the binary dropped from about 895 KiB to 295 KiB, saving about 599 KiB.
+
+### TCP remote console
+
+Once the ESP32 is connected, obtain its address with `ifconfig` and open a raw
+TCP connection to port 2323:
+
+```bash
+nc 192.168.1.50 2323
+```
+
+The remote session exposes the same commands as UART. UART remains available,
+and commands are serialized so output from two sessions cannot be mixed. The
+server accepts one remote TCP client at a time and listens again after the
+client disconnects.
+
+Configure it under:
+
+```text
+idf.py menuconfig
+MiniOS remote console -> Enable TCP remote console
+```
+
+`CONFIG_MINIOS_REMOTE_CONSOLE_PORT` selects the port and
+`CONFIG_MINIOS_REMOTE_CONSOLE_STACK_SIZE` selects the task stack size. The
+remote console depends on `CONFIG_MINIOS_ENABLE_NETWORK` and is omitted from
+the network-free profile.
+
+Warning: this initial version uses unencrypted, unauthenticated TCP. Enable it
+only on trusted networks and never expose it directly to the Internet.
 
 Current shell limits:
 
@@ -722,7 +782,7 @@ SPDX identifier: `Apache-2.0`.
 | 4 | Device Manager | Complete |
 | 5 | GPIO, I²C, and SPI | Complete |
 | 6 | Wi-Fi, ping, and network configuration | Complete |
-| 7 | Remote TCP shell | Planned |
+| 7 | Remote TCP shell | Complete |
 | 8 | Shell scripting and `/boot/startup.rc` | Future |
 | 9 | Compiled module management | Future |
 | 10 | Application and process management | Future |

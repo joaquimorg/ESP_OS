@@ -1321,13 +1321,20 @@ entrar no firmware final.
 
 ## Milestone 7 — Remote Console
 
-Implementar:
+Implementado:
 
 ```text
-TCP shell
+TCP shell na porta configurável (2323 por omissão)
 ```
 
-Mesma shell utilizada na UART.
+A consola TCP utiliza a mesma command registry da UART. As duas consolas
+aceitam input em paralelo e a execução de comandos é serializada para manter a
+saída na sessão correta. É suportado um cliente TCP remoto de cada vez.
+
+A inclusão é controlada por `CONFIG_MINIOS_ENABLE_REMOTE_CONSOLE`, depende de
+`CONFIG_MINIOS_ENABLE_NETWORK` e inclui opções para porta e stack da task. A
+primeira versão não tem autenticação nem encriptação e destina-se apenas a
+redes de confiança.
 
 ---
 

@@ -3,9 +3,11 @@
 #include <limits.h>
 #include <unistd.h>
 
-static int uart_read(char *buffer, size_t length)
+static int uart_read(void *context, char *buffer, size_t length)
 {
     ssize_t received;
+
+    (void)context;
 
     if (length > (size_t)INT_MAX) {
         return -1;
@@ -20,9 +22,11 @@ static int uart_read(char *buffer, size_t length)
     return (received < 0) ? -1 : (int)received;
 }
 
-static int uart_write(const char *buffer, size_t length)
+static int uart_write(void *context, const char *buffer, size_t length)
 {
     size_t total = 0U;
+
+    (void)context;
 
     if (length > (size_t)INT_MAX) {
         return -1;

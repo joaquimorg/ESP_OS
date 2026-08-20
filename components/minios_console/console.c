@@ -7,7 +7,7 @@ int minios_console_read(minios_console_t *console, char *buffer, size_t length)
     if ((console == NULL) || (console->read == NULL) || (buffer == NULL) || (length == 0U)) {
         return -1;
     }
-    return console->read(buffer, length);
+    return console->read(console->context, buffer, length);
 }
 
 int minios_console_write(minios_console_t *console, const char *buffer, size_t length)
@@ -15,7 +15,7 @@ int minios_console_write(minios_console_t *console, const char *buffer, size_t l
     if ((console == NULL) || (console->write == NULL) || (buffer == NULL)) {
         return -1;
     }
-    return console->write(buffer, length);
+    return console->write(console->context, buffer, length);
 }
 
 int minios_console_write_text(minios_console_t *console, const char *text)
@@ -29,6 +29,6 @@ int minios_console_write_text(minios_console_t *console, const char *text)
 void minios_console_close(minios_console_t *console)
 {
     if ((console != NULL) && (console->close != NULL)) {
-        console->close();
+        console->close(console->context);
     }
 }

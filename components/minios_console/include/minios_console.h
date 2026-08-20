@@ -3,9 +3,9 @@
 #include <stddef.h>
 
 typedef struct minios_console {
-    int (*read)(char *buffer, size_t length);
-    int (*write)(const char *buffer, size_t length);
-    void (*close)(void);
+    int (*read)(void *context, char *buffer, size_t length);
+    int (*write)(void *context, const char *buffer, size_t length);
+    void (*close)(void *context);
     void *context;
 } minios_console_t;
 

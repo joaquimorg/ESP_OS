@@ -1,0 +1,24 @@
+menu "MiniOS remote console"
+
+    config MINIOS_ENABLE_REMOTE_CONSOLE
+        bool "Enable TCP remote console"
+        depends on MINIOS_ENABLE_NETWORK
+        default y
+        help
+            Start a TCP server that exposes the same command shell used by
+            the UART console. The remote console has no authentication and
+            should only be enabled on trusted networks.
+
+    config MINIOS_REMOTE_CONSOLE_PORT
+        int "TCP remote console port"
+        depends on MINIOS_ENABLE_REMOTE_CONSOLE
+        range 1 65535
+        default 2323
+
+    config MINIOS_REMOTE_CONSOLE_STACK_SIZE
+        int "TCP remote console task stack size"
+        depends on MINIOS_ENABLE_REMOTE_CONSOLE
+        range 4096 16384
+        default 5120
+
+endmenu

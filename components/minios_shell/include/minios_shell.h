@@ -25,3 +25,4 @@ int minios_shell_write(const char *text);
 int minios_shell_write_bytes(const char *data, size_t length);
 int minios_shell_printf(const char *format, ...);
 void minios_shell_run(void);
+void minios_shell_run_console(minios_console_t *console);

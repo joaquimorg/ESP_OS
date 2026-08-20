@@ -8,12 +8,17 @@
 #include "minios_fs.h"
 #include "shell_internal.h"
 #include "sdkconfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 #define MINIOS_SHELL_FORMAT_BUFFER 192
 
-static minios_console_t *shell_console;
+static minios_console_t *uart_console;
+static minios_console_t *command_console;
 static const minios_command_t *command_registry[MINIOS_SHELL_MAX_COMMANDS];
 static size_t command_count;
+static StaticSemaphore_t command_mutex_storage;
+static SemaphoreHandle_t command_mutex;
 
 static const minios_command_t *find_command(const char *name)
 {
@@ -64,7 +69,12 @@ int minios_shell_init(minios_console_t *console)
         return -1;
     }
 
-    shell_console = console;
+    uart_console = console;
+    command_console = console;
+    command_mutex = xSemaphoreCreateMutexStatic(&command_mutex_storage);
+    if (command_mutex == NULL) {
+        return -1;
+    }
     command_count = 0U;
     return register_builtin_commands();
 }
@@ -98,12 +108,12 @@ const minios_command_t *minios_shell_command_at(size_t index)
 
 int minios_shell_write(const char *text)
 {
-    return minios_console_write_text(shell_console, text);
+    return minios_console_write_text(command_console, text);
 }
 
 int minios_shell_write_bytes(const char *data, size_t length)
 {
-    return minios_console_write(shell_console, data, length);
+    return minios_console_write(command_console, data, length);
 }
 
 int minios_shell_printf(const char *format, ...)
@@ -126,10 +136,10 @@ int minios_shell_printf(const char *format, ...)
     if ((size_t)length >= sizeof(buffer)) {
         length = (int)(sizeof(buffer) - 1U);
     }
-    return minios_console_write(shell_console, buffer, (size_t)length);
+    return minios_console_write(command_console, buffer, (size_t)length);
 }
 
-static void execute_line(char *line)
+static void execute_line(minios_console_t *console, char *line)
 {
     char *argv[MINIOS_SHELL_MAX_ARGS];
     const minios_command_t *command;
@@ -137,36 +147,76 @@ static void execute_line(char *line)
 
     argc = minios_shell_parse(line, argv, MINIOS_SHELL_MAX_ARGS);
     if (argc == -2) {
-        minios_shell_write("Error: too many arguments\r\n");
+        minios_console_write_text(console, "Error: too many arguments\r\n");
         return;
     }
     if (argc <= 0) {
         return;
     }
 
+    if (xSemaphoreTake(command_mutex, portMAX_DELAY) != pdTRUE) {
+        minios_console_write_text(console, "Error: shell unavailable\r\n");
+        return;
+    }
+    command_console = console;
     command = find_command(argv[0]);
     if (command == NULL) {
         minios_shell_printf("Unknown command: %s\r\n", argv[0]);
-        return;
+    } else {
+        (void)command->handler(argc, argv);
     }
-
-    (void)command->handler(argc, argv);
+    command_console = uart_console;
+    xSemaphoreGive(command_mutex);
 }
 
-void minios_shell_run(void)
+static void write_prompt(minios_console_t *console)
+{
+    char cwd[OS_FS_PATH_MAX];
+
+    if (xSemaphoreTake(command_mutex, portMAX_DELAY) != pdTRUE) {
+        minios_console_write_text(console, "minios:?> ");
+        return;
+    }
+    if (os_fs_getcwd(cwd, sizeof(cwd)) == OS_FS_OK) {
+        char prompt[OS_FS_PATH_MAX + 12U];
+        int prompt_length = snprintf(prompt, sizeof(prompt),
+                                     "minios:%s> ", cwd);
+
+        if (prompt_length > 0) {
+            minios_console_write(
+                console, prompt,
+                (size_t)prompt_length < sizeof(prompt)
+                    ? (size_t)prompt_length
+                    : sizeof(prompt) - 1U);
+        }
+    } else {
+        minios_console_write_text(console, "minios:?> ");
+    }
+    xSemaphoreGive(command_mutex);
+}
+
+void minios_shell_run_console(minios_console_t *console)
 {
     char line[MINIOS_SHELL_MAX_LINE];
     size_t length = 0U;
     int discard_line = 0;
     int ignore_lf = 0;
 
-    minios_shell_write("Type 'help' for available commands.\r\n\r\nminios:/> ");
+    if (console == NULL) {
+        return;
+    }
+    minios_console_write_text(
+        console, "Type 'help' for available commands.\r\n\r\n");
+    write_prompt(console);
 
     for (;;) {
         char character;
-        int received = minios_console_read(shell_console, &character, 1U);
+        int received = minios_console_read(console, &character, 1U);
 
-        if (received <= 0) {
+        if (received < 0) {
+            break;
+        }
+        if (received == 0) {
             os_sleep(10U);
             continue;
         }
@@ -179,30 +229,24 @@ void minios_shell_run(void)
 
         if ((character == '\r') || (character == '\n')) {
             ignore_lf = (character == '\r');
-            minios_shell_write("\r\n");
+            minios_console_write_text(console, "\r\n");
             if (discard_line) {
-                minios_shell_write("Error: command line too long\r\n");
+                minios_console_write_text(
+                    console, "Error: command line too long\r\n");
             } else {
                 line[length] = '\0';
-                execute_line(line);
+                execute_line(console, line);
             }
             length = 0U;
             discard_line = 0;
-            {
-                char cwd[OS_FS_PATH_MAX];
-                if (os_fs_getcwd(cwd, sizeof(cwd)) == OS_FS_OK) {
-                    minios_shell_printf("minios:%s> ", cwd);
-                } else {
-                    minios_shell_write("minios:?> ");
-                }
-            }
+            write_prompt(console);
             continue;
         }
 
         if ((character == '\b') || (character == 0x7f)) {
             if (!discard_line && (length > 0U)) {
                 --length;
-                minios_shell_write("\b \b");
+                minios_console_write_text(console, "\b \b");
             }
             continue;
         }
@@ -218,6 +262,11 @@ void minios_shell_run(void)
 
         line[length] = character;
         ++length;
-        (void)minios_console_write(shell_console, &character, 1U);
+        (void)minios_console_write(console, &character, 1U);
     }
+}
+
+void minios_shell_run(void)
+{
+    minios_shell_run_console(uart_console);
 }
