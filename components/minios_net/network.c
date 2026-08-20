@@ -27,8 +27,29 @@ static esp_netif_t *netif;
 static bool net_initialized;
 static volatile bool connection_pending;
 static volatile unsigned int connection_retries;
+static volatile uint8_t last_disconnect_reason;
 static volatile os_net_state_t net_state = OS_NET_STATE_DISABLED;
 static char current_ssid[OS_NET_SSID_MAX_LENGTH + 1U];
+static volatile bool scan_in_progress;
+static wifi_ap_record_t scan_record;
+
+static int disconnect_reason_to_result(uint8_t reason)
+{
+    switch (reason) {
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+    case WIFI_REASON_802_1X_AUTH_FAILED:
+    case WIFI_REASON_AUTH_FAIL:
+    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+        return OS_NET_AUTH_FAILED;
+    case WIFI_REASON_NO_AP_FOUND:
+    case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
+    case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
+    case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
+        return OS_NET_AP_NOT_FOUND;
+    default:
+        return OS_NET_ERROR;
+    }
+}
 
 typedef struct {
     StaticSemaphore_t semaphore_storage;
@@ -41,11 +62,14 @@ typedef struct {
 static void net_event_handler(void *argument, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
 {
+    const wifi_event_sta_disconnected_t *disconnected;
+
     (void)argument;
-    (void)event_data;
 
     if ((event_base == WIFI_EVENT) &&
         (event_id == WIFI_EVENT_STA_DISCONNECTED)) {
+        disconnected = (const wifi_event_sta_disconnected_t *)event_data;
+        last_disconnect_reason = disconnected->reason;
         net_state = OS_NET_STATE_DISCONNECTED;
         xEventGroupClearBits(net_events, NET_CONNECTED_BIT);
         xEventGroupSetBits(net_events, NET_DISCONNECTED_BIT);
@@ -120,9 +144,10 @@ int os_net_scan(os_net_scan_callback_t callback, void *context, size_t *found)
     wifi_scan_config_t scan_configuration = {
         .show_hidden = true,
     };
-    wifi_ap_record_t records[NET_SCAN_MAX_RESULTS];
-    uint16_t count = NET_SCAN_MAX_RESULTS;
+    uint16_t available = 0U;
+    uint16_t count;
     size_t index;
+    int result = OS_NET_ERROR;
 
     if (!net_initialized) {
         return OS_NET_NOT_INITIALIZED;
@@ -130,30 +155,45 @@ int os_net_scan(os_net_scan_callback_t callback, void *context, size_t *found)
     if ((callback == NULL) || (found == NULL)) {
         return OS_NET_INVALID_ARGUMENT;
     }
-    if (net_state == OS_NET_STATE_CONNECTING) {
+    if ((net_state == OS_NET_STATE_CONNECTING) || scan_in_progress) {
         return OS_NET_BUSY;
     }
+    scan_in_progress = true;
     if (esp_wifi_scan_start(&scan_configuration, true) != ESP_OK) {
-        return OS_NET_ERROR;
+        goto complete;
     }
-    if (esp_wifi_scan_get_ap_records(&count, records) != ESP_OK) {
-        return OS_NET_ERROR;
+    if (esp_wifi_scan_get_ap_num(&available) != ESP_OK) {
+        goto complete;
     }
+    count = (available < NET_SCAN_MAX_RESULTS)
+                ? available
+                : (uint16_t)NET_SCAN_MAX_RESULTS;
     for (index = 0U; index < count; ++index) {
         os_net_access_point_t access_point = {0};
-        size_t ssid_length = strnlen((const char *)records[index].ssid,
-                                     OS_NET_SSID_MAX_LENGTH);
+        size_t ssid_length;
 
-        memcpy(access_point.ssid, records[index].ssid, ssid_length);
-        access_point.rssi = records[index].rssi;
-        access_point.channel = records[index].primary;
-        access_point.secure = records[index].authmode != WIFI_AUTH_OPEN;
+        if (esp_wifi_scan_get_ap_record(&scan_record) != ESP_OK) {
+            goto complete;
+        }
+        ssid_length = strnlen((const char *)scan_record.ssid,
+                              OS_NET_SSID_MAX_LENGTH);
+
+        memcpy(access_point.ssid, scan_record.ssid, ssid_length);
+        access_point.rssi = scan_record.rssi;
+        access_point.channel = scan_record.primary;
+        access_point.secure = scan_record.authmode != WIFI_AUTH_OPEN;
         if (callback(&access_point, context) != 0) {
-            return OS_NET_ERROR;
+            goto complete;
         }
     }
     *found = count;
-    return OS_NET_OK;
+    result = OS_NET_OK;
+
+complete:
+    /* Releases records beyond the display limit and also cleans up errors. */
+    (void)esp_wifi_clear_ap_list();
+    scan_in_progress = false;
+    return result;
 }
 
 int os_net_disconnect(void)
@@ -190,6 +230,9 @@ int os_net_connect(const char *ssid, const char *password, uint32_t timeout_ms)
     if ((ssid == NULL) || (password == NULL) || (timeout_ms == 0U)) {
         return OS_NET_INVALID_ARGUMENT;
     }
+    if (scan_in_progress) {
+        return OS_NET_BUSY;
+    }
     ssid_length = strnlen(ssid, OS_NET_SSID_MAX_LENGTH + 1U);
     password_length = strnlen(password, OS_NET_PASSWORD_MAX_LENGTH + 1U);
     if ((ssid_length == 0U) || (ssid_length > OS_NET_SSID_MAX_LENGTH) ||
@@ -210,6 +253,7 @@ int os_net_connect(const char *ssid, const char *password, uint32_t timeout_ms)
     memcpy(current_ssid, ssid, ssid_length);
     current_ssid[ssid_length] = '\0';
     connection_retries = 0U;
+    last_disconnect_reason = 0U;
     connection_pending = true;
     net_state = OS_NET_STATE_CONNECTING;
     xEventGroupClearBits(net_events,
@@ -229,6 +273,9 @@ int os_net_connect(const char *ssid, const char *password, uint32_t timeout_ms)
     connection_pending = false;
     (void)esp_wifi_disconnect();
     net_state = OS_NET_STATE_DISCONNECTED;
+    if (last_disconnect_reason != 0U) {
+        return disconnect_reason_to_result(last_disconnect_reason);
+    }
     return ((bits & NET_FAILED_BIT) != 0U) ? OS_NET_ERROR : OS_NET_TIMEOUT;
 }
 

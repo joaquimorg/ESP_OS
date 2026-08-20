@@ -42,6 +42,12 @@ static int report_wifi_error(const char *operation, int result)
     case OS_NET_BUSY:
         reason = "network busy";
         break;
+    case OS_NET_AUTH_FAILED:
+        reason = "authentication failed; check password and AP security";
+        break;
+    case OS_NET_AP_NOT_FOUND:
+        reason = "access point not found or incompatible security";
+        break;
     default:
         reason = "network error or connection rejected";
         break;
