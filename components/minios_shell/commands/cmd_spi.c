@@ -61,11 +61,8 @@ static int spi_status_command(int argc)
     }
     minios_hal_spi_info(&info);
     if (!info.initialized) {
-        minios_shell_printf(
-            "Not initialized (default MOSI=%d MISO=%d SCLK=%d CS=%d %u Hz)\r\n",
-            MINIOS_HAL_SPI_DEFAULT_MOSI, MINIOS_HAL_SPI_DEFAULT_MISO,
-            MINIOS_HAL_SPI_DEFAULT_SCLK, MINIOS_HAL_SPI_DEFAULT_CS,
-            MINIOS_HAL_SPI_DEFAULT_FREQUENCY);
+        minios_shell_write(
+            "Not initialized. Use: spi init <mosi> <miso> <sclk> <cs> [frequency]\r\n");
     } else {
         minios_shell_printf(
             "MOSI=%d MISO=%d SCLK=%d CS=%d Frequency=%u Hz\r\n",

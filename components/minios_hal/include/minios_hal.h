@@ -10,14 +10,8 @@
 #define MINIOS_HAL_BUSY -4
 #define MINIOS_HAL_TIMEOUT -5
 
-#define MINIOS_HAL_I2C_DEFAULT_SDA 8
-#define MINIOS_HAL_I2C_DEFAULT_SCL 9
 #define MINIOS_HAL_I2C_DEFAULT_FREQUENCY 100000U
 
-#define MINIOS_HAL_SPI_DEFAULT_MOSI 6
-#define MINIOS_HAL_SPI_DEFAULT_MISO 5
-#define MINIOS_HAL_SPI_DEFAULT_SCLK 4
-#define MINIOS_HAL_SPI_DEFAULT_CS 7
 #define MINIOS_HAL_SPI_DEFAULT_FREQUENCY 1000000U
 #define MINIOS_HAL_SPI_MAX_TRANSFER 32U
 
@@ -27,6 +21,17 @@ typedef enum {
     MINIOS_HAL_GPIO_INPUT_PULLUP,
     MINIOS_HAL_GPIO_INPUT_PULLDOWN,
 } minios_hal_gpio_mode_t;
+
+typedef struct {
+    int valid;
+    int input;
+    int output;
+    int pullup;
+    int pulldown;
+    int reserved;
+    int configured;
+    minios_hal_gpio_mode_t mode;
+} minios_hal_gpio_info_t;
 
 typedef int (*minios_hal_i2c_scan_callback_t)(uint8_t address, void *context);
 
@@ -47,10 +52,13 @@ typedef struct {
 
 int minios_hal_init(void);
 
+size_t minios_hal_gpio_count(void);
+int minios_hal_gpio_info(int pin, minios_hal_gpio_info_t *info);
 int minios_hal_gpio_is_usable(int pin, int require_output);
 int minios_hal_gpio_mode(int pin, minios_hal_gpio_mode_t mode);
 int minios_hal_gpio_write(int pin, int value);
 int minios_hal_gpio_read(int pin, int *value);
+int minios_hal_gpio_reset(int pin);
 
 int minios_hal_i2c_configure(int sda, int scl);
 void minios_hal_i2c_info(minios_hal_i2c_info_t *info);

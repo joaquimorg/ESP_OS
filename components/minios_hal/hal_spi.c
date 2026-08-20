@@ -3,9 +3,11 @@
 #include <string.h>
 
 #include "driver/spi_master.h"
+#include "esp_private/esp_gpio_reserve.h"
 
 static spi_device_handle_t spi_device;
 static minios_hal_spi_info_t spi_info;
+static uint64_t spi_reserved_mask;
 
 static int spi_release(void)
 {
@@ -20,6 +22,10 @@ static int spi_release(void)
             return MINIOS_HAL_BUSY;
         }
         memset(&spi_info, 0, sizeof(spi_info));
+    }
+    if (spi_reserved_mask != 0U) {
+        esp_gpio_revoke(spi_reserved_mask);
+        spi_reserved_mask = 0U;
     }
     return MINIOS_HAL_OK;
 }
@@ -41,28 +47,52 @@ int minios_hal_spi_configure(int mosi, int miso, int sclk, int cs,
         .spics_io_num = cs,
         .queue_size = 1,
     };
+    minios_hal_gpio_info_t pin_info[4];
+    const int pins[4] = {mosi, miso, sclk, cs};
+    uint64_t requested_mask = 0U;
+    uint64_t old_mask;
+    size_t index;
     int result;
 
-    if (!minios_hal_gpio_is_usable(mosi, 1) ||
-        !minios_hal_gpio_is_usable(miso, 0) ||
-        !minios_hal_gpio_is_usable(sclk, 1) ||
-        !minios_hal_gpio_is_usable(cs, 1) ||
-        (mosi == miso) || (mosi == sclk) ||
+    if ((mosi == miso) || (mosi == sclk) ||
         (mosi == cs) || (miso == sclk) || (miso == cs) || (sclk == cs) ||
         (frequency < 10000U) || (frequency > 10000000U)) {
         return MINIOS_HAL_INVALID_ARGUMENT;
+    }
+    for (index = 0U; index < 4U; ++index) {
+        int require_output = (index != 1U);
+        if ((minios_hal_gpio_info(pins[index], &pin_info[index]) !=
+             MINIOS_HAL_OK) || !pin_info[index].valid ||
+            (require_output && !pin_info[index].output)) {
+            return MINIOS_HAL_INVALID_ARGUMENT;
+        }
+        if (pin_info[index].reserved &&
+            ((spi_reserved_mask & (UINT64_C(1) << pins[index])) == 0U)) {
+            return MINIOS_HAL_BUSY;
+        }
+        requested_mask |= UINT64_C(1) << pins[index];
     }
     result = spi_release();
     if (result != MINIOS_HAL_OK) {
         return result;
     }
+    old_mask = esp_gpio_reserve(requested_mask) & requested_mask;
+    if (old_mask != 0U) {
+        esp_gpio_revoke(requested_mask & ~old_mask);
+        return MINIOS_HAL_BUSY;
+    }
+    spi_reserved_mask = requested_mask;
     if (spi_bus_initialize(SPI2_HOST, &bus_configuration,
                            SPI_DMA_DISABLED) != ESP_OK) {
+        esp_gpio_revoke(spi_reserved_mask);
+        spi_reserved_mask = 0U;
         return MINIOS_HAL_ERROR;
     }
     if (spi_bus_add_device(SPI2_HOST, &device_configuration,
                            &spi_device) != ESP_OK) {
         spi_bus_free(SPI2_HOST);
+        esp_gpio_revoke(spi_reserved_mask);
+        spi_reserved_mask = 0U;
         spi_device = NULL;
         return MINIOS_HAL_ERROR;
     }
@@ -92,13 +122,7 @@ int minios_hal_spi_transfer(const uint8_t *transmit, uint8_t *receive,
         return MINIOS_HAL_INVALID_ARGUMENT;
     }
     if (spi_device == NULL) {
-        int result = minios_hal_spi_configure(
-            MINIOS_HAL_SPI_DEFAULT_MOSI, MINIOS_HAL_SPI_DEFAULT_MISO,
-            MINIOS_HAL_SPI_DEFAULT_SCLK, MINIOS_HAL_SPI_DEFAULT_CS,
-            MINIOS_HAL_SPI_DEFAULT_FREQUENCY);
-        if (result != MINIOS_HAL_OK) {
-            return result;
-        }
+        return MINIOS_HAL_NOT_INITIALIZED;
     }
     transaction.length = length * 8U;
     transaction.tx_buffer = transmit;

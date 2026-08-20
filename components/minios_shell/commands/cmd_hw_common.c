@@ -57,7 +57,7 @@ int minios_cmd_hal_report_error(const char *operation, int result)
         reason = "not configured";
         break;
     case MINIOS_HAL_BUSY:
-        reason = "controller busy";
+        reason = "pin or controller busy";
         break;
     case MINIOS_HAL_TIMEOUT:
         reason = "bus timeout";

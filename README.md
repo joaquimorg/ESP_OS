@@ -161,41 +161,49 @@ ls /dev
 
 O registry aceita até oito dispositivos sem alocação dinâmica e contém `uart0`,
 `gpio`, `i2c0` e `spi0`. O comando `ls` combina o conteúdo persistente do
-LittleFS com os dispositivos virtuais quando lista `/dev`.
+LittleFS com os dispositivos virtuais quando lista `/dev`. O namespace `/dev`
+é reservado: comandos de ficheiros não criam, alteram ou removem dispositivos.
 
 ## Hardware
 
 GPIO:
 
 ```text
+gpio list
+gpio info 8
 gpio mode 8 out
 gpio write 8 1
 gpio mode 3 pullup
 gpio read 3
+gpio reset 8
 ```
 
-I²C usa por omissão SDA 8, SCL 9 e 100 kHz. Os pinos podem ser alterados antes
-da pesquisa:
+O I²C não assume pinos por omissão, porque estes dependem do SoC, módulo e
+placa. É necessário configurá-lo antes da pesquisa (8 e 9 são apenas um
+exemplo de ligação):
 
 ```text
 i2c status
-i2c scan
-i2c init 6 7
+i2c init 8 9
 i2c scan
 ```
 
-SPI usa por omissão MOSI 6, MISO 5, SCLK 4, CS 7, modo 0 e 1 MHz:
+O SPI também exige configuração explícita. O modo é 0 e a frequência omitida
+é 1 MHz; os pinos seguintes são apenas um exemplo:
 
 ```text
 spi status
-spi transfer 9f 00 00 00
 spi init 6 5 4 7 4000000
+spi transfer 9f 00 00 00
 ```
 
-Os buses só reservam os pinos quando são usados. No ESP32-C3 atual, GPIO12–17
-(flash) e GPIO18–19 (USB Serial/JTAG) são protegidos contra reconfiguração. A
-pesquisa I²C é feita a 100 kHz pelo driver ESP-IDF e requer pull-ups externos
-adequados para funcionamento fiável.
+`gpio list` e `gpio info` obtêm as capacidades do target selecionado no
+ESP-IDF: existência do pino, entrada, saída e pull-ups/pull-downs. Um pino sem
+capacidade de saída é recusado em modo `out` e em sinais de saída de I²C/SPI.
+Os pinos usados pelo sistema ou por drivers são apresentados como `reserved` e
+não podem ser reconfigurados. Os buses reservam os seus pinos quando são
+inicializados. A pesquisa I²C é feita a 100 kHz pelo driver ESP-IDF e requer
+pull-ups externos adequados para funcionamento fiável.
 
 Limites atuais do shell:
 
@@ -463,40 +471,48 @@ ls /dev
 
 The registry holds up to eight devices without dynamic allocation and contains
 `uart0`, `gpio`, `i2c0`, and `spi0`. When listing `/dev`, `ls` combines persistent
-LittleFS entries with virtual devices.
+LittleFS entries with virtual devices. The `/dev` namespace is reserved, so
+filesystem commands cannot create, modify, or remove devices.
 
 ### Hardware
 
 GPIO:
 
 ```text
+gpio list
+gpio info 8
 gpio mode 8 out
 gpio write 8 1
 gpio mode 3 pullup
 gpio read 3
+gpio reset 8
 ```
 
-I²C defaults to SDA 8, SCL 9, and 100 kHz. Pins can be changed before scanning:
+I²C has no default pins because they depend on the SoC, module, and board. It
+must be configured before scanning (8 and 9 are only a wiring example):
 
 ```text
 i2c status
-i2c scan
-i2c init 6 7
+i2c init 8 9
 i2c scan
 ```
 
-SPI defaults to MOSI 6, MISO 5, SCLK 4, CS 7, mode 0, and 1 MHz:
+SPI also requires explicit configuration. It uses mode 0 and defaults to 1 MHz
+when the frequency is omitted; these pins are only an example:
 
 ```text
 spi status
-spi transfer 9f 00 00 00
 spi init 6 5 4 7 4000000
+spi transfer 9f 00 00 00
 ```
 
-Buses only claim their pins when first used. On the current ESP32-C3 target,
-GPIO12–17 (flash) and GPIO18–19 (USB Serial/JTAG) are protected from
-reconfiguration. The ESP-IDF driver scans I²C at 100 kHz and requires suitable
-external pull-ups for reliable operation.
+`gpio list` and `gpio info` derive capabilities from the selected ESP-IDF
+target: pin existence, input, output, pull-up, and pull-down support. A pin
+without output capability is rejected for `out` mode and for I²C/SPI output
+signals. Pins used by the system or drivers are shown as `reserved` and cannot
+be reconfigured. Buses reserve their pins when initialized. The ESP-IDF driver
+scans I²C at 100 kHz and requires suitable external pull-ups for reliable
+operation.
 
 Current shell limits:
 

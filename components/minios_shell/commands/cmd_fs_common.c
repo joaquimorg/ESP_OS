@@ -30,6 +30,9 @@ int minios_cmd_fs_report_error(const char *operation, const char *path,
     case OS_FS_PATH_TOO_LONG:
         reason = "path too long";
         break;
+    case OS_FS_IS_DEVICE:
+        reason = "device path is not a regular file";
+        break;
     default:
         reason = "filesystem error";
         break;

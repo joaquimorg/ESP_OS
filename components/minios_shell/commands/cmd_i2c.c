@@ -43,10 +43,7 @@ static int i2c_status_command(int argc)
     }
     minios_hal_i2c_info(&info);
     if (!info.initialized) {
-        minios_shell_printf("Not initialized (default SDA=%d SCL=%d %u Hz)\r\n",
-                            MINIOS_HAL_I2C_DEFAULT_SDA,
-                            MINIOS_HAL_I2C_DEFAULT_SCL,
-                            MINIOS_HAL_I2C_DEFAULT_FREQUENCY);
+        minios_shell_write("Not initialized. Use: i2c init <sda> <scl>\r\n");
     } else {
         minios_shell_printf("SDA=%d SCL=%d Scan=%u Hz\r\n", info.sda,
                             info.scl, MINIOS_HAL_I2C_DEFAULT_FREQUENCY);
