@@ -195,6 +195,27 @@ int os_fs_getcwd(char *path, size_t length)
     return OS_FS_OK;
 }
 
+int os_fs_resolve_path(const char *path, char *resolved, size_t length)
+{
+    char normalized[OS_FS_PATH_MAX];
+    size_t required;
+    int result;
+
+    if (!fs_initialized || (resolved == NULL) || (length == 0U)) {
+        return OS_FS_INVALID_ARGUMENT;
+    }
+    result = normalize_path(path, normalized);
+    if (result != OS_FS_OK) {
+        return result;
+    }
+    required = strlen(normalized) + 1U;
+    if (required > length) {
+        return OS_FS_PATH_TOO_LONG;
+    }
+    memcpy(resolved, normalized, required);
+    return OS_FS_OK;
+}
+
 int os_fs_chdir(const char *path)
 {
     char logical[OS_FS_PATH_MAX];

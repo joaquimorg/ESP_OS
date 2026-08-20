@@ -8,7 +8,7 @@ A versão atual é a **MiniOS 0.01**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2 e 3 estão implementadas:
+As Milestones 0, 1, 2, 3 e 4 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -19,7 +19,8 @@ As Milestones 0, 1, 2 e 3 estão implementadas:
 - command registry estático;
 - comandos básicos do sistema;
 - configuração persistente com backend NVS;
-- filesystem LittleFS e comandos de ficheiros.
+- filesystem LittleFS e comandos de ficheiros;
+- Device Manager com registry estático para `uart0` e `gpio`.
 
 Ainda não estão implementados Wi-Fi, módulos, aplicações externas ou carregamento ELF.
 
@@ -44,7 +45,7 @@ Ainda não estão implementados Wi-Fi, módulos, aplicações externas ou carreg
 Princípios atuais:
 
 - `main.c` contém apenas o arranque do kernel;
-- kernel, configuração, filesystem, console, shell e API são componentes ESP-IDF separados;
+- kernel, configuração, filesystem, Device Manager, console, shell e API são componentes ESP-IDF separados;
 - o shell utiliza `minios_console_t` e não depende diretamente da UART;
 - dependências ESP-IDF e FreeRTOS ficam confinadas às camadas de implementação dos componentes;
 - cada comando está isolado e é adicionado através do command registry;
@@ -66,6 +67,7 @@ ESP_OS/
     ├── minios_api/
     ├── minios_config/
     ├── minios_console/
+    ├── minios_device/
     ├── minios_fs/
     ├── minios_kernel/
     └── minios_shell/
@@ -85,6 +87,7 @@ Copyright 2026 joaquim.org
 [ OK ] Console
 [ OK ] Config
 [ OK ] Filesystem
+[ OK ] Device Manager
 [ OK ] Shell
 
 Type 'help' for available commands.
@@ -104,6 +107,7 @@ Comandos disponíveis:
 | `reboot` | Reinicia o microcontrolador |
 | `clear` | Limpa um terminal compatível com sequências ANSI |
 | `config` | Gere configuração persistente em NVS |
+| `device` | Lista e descreve os dispositivos registados |
 | `ls` | Lista o conteúdo de um diretório |
 | `cd` | Muda o diretório atual |
 | `pwd` | Mostra o diretório atual |
@@ -140,12 +144,26 @@ rm note.txt
 `echo <text> <file>` e `>` substituem o conteúdo; `>>` acrescenta. O texto está
 limitado a um argumento enquanto o parser não suportar aspas.
 
+Operações do Device Manager:
+
+```text
+device list
+device info uart0
+device info /dev/gpio
+ls /dev
+```
+
+O registry aceita até oito dispositivos sem alocação dinâmica. `uart0` anuncia
+capacidades de leitura/escrita da consola e `gpio` a capacidade de controlo; as
+operações de GPIO pertencem ao Milestone 5. O comando `ls` combina o conteúdo
+persistente do LittleFS com os dispositivos virtuais quando lista `/dev`.
+
 Limites atuais do shell:
 
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      12
-#define MINIOS_SHELL_MAX_COMMANDS  16
+#define MINIOS_SHELL_MAX_COMMANDS  20
 ```
 
 O parser suporta apenas comandos e argumentos separados por espaços. Pipes, redirecionamento, wildcards e expansão de variáveis ainda não são suportados.
@@ -174,7 +192,7 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 233 KiB com a configuração ESP-IDF atual.
+O build atual gera `build/minios.bin` e ocupa aproximadamente 235 KiB com a configuração ESP-IDF atual.
 
 ## Adicionar um comando
 
@@ -229,8 +247,8 @@ Identificador SPDX: `Apache-2.0`.
 | 1 | Shell, parser, registry e comandos básicos | Concluída |
 | 2 | Configuração persistente com NVS | Concluída |
 | 3 | LittleFS e comandos de filesystem | Concluída |
-| 4 | Device Manager | Próxima |
-| 5 | GPIO, I²C e SPI | Planeada |
+| 4 | Device Manager | Concluída |
+| 5 | GPIO, I²C e SPI | Próxima |
 | 6 | Wi-Fi, ping e configuração de rede | Planeada |
 | 7 | Shell remota por TCP | Planeada |
 | 8 | Script de arranque `/boot/startup.rc` | Futura |
@@ -253,7 +271,7 @@ The current release is **MiniOS 0.01**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, and 3 are implemented:
+Milestones 0, 1, 2, 3, and 4 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -264,7 +282,8 @@ Milestones 0, 1, 2, and 3 are implemented:
 - static command registry;
 - basic system commands;
 - persistent configuration backed by NVS;
-- LittleFS and filesystem commands.
+- LittleFS and filesystem commands;
+- a static Device Manager registry for `uart0` and `gpio`.
 
 Wi-Fi, modules, external applications, and ELF loading are intentionally not implemented yet.
 
@@ -289,7 +308,7 @@ Wi-Fi, modules, external applications, and ELF loading are intentionally not imp
 Current design principles:
 
 - `main.c` only starts the kernel;
-- kernel, configuration, filesystem, console, shell, and API are separate ESP-IDF components;
+- kernel, configuration, filesystem, Device Manager, console, shell, and API are separate ESP-IDF components;
 - the shell uses `minios_console_t` and has no direct UART dependency;
 - ESP-IDF and FreeRTOS dependencies are confined to component implementation layers;
 - every command is isolated and added through the command registry;
@@ -311,6 +330,7 @@ ESP_OS/
     ├── minios_api/
     ├── minios_config/
     ├── minios_console/
+    ├── minios_device/
     ├── minios_fs/
     ├── minios_kernel/
     └── minios_shell/
@@ -330,6 +350,7 @@ Copyright 2026 joaquim.org
 [ OK ] Console
 [ OK ] Config
 [ OK ] Filesystem
+[ OK ] Device Manager
 [ OK ] Shell
 
 Type 'help' for available commands.
@@ -349,6 +370,7 @@ Available commands:
 | `reboot` | Restarts the microcontroller |
 | `clear` | Clears a terminal that supports ANSI sequences |
 | `config` | Manages persistent configuration in NVS |
+| `device` | Lists and describes registered devices |
 | `ls` | Lists directory contents |
 | `cd` | Changes the working directory |
 | `pwd` | Prints the working directory |
@@ -385,12 +407,26 @@ rm note.txt
 `echo <text> <file>` and `>` replace the contents; `>>` appends. Text is limited
 to one argument until the parser supports quoted strings.
 
+Device Manager operations:
+
+```text
+device list
+device info uart0
+device info /dev/gpio
+ls /dev
+```
+
+The registry holds up to eight devices without dynamic allocation. `uart0`
+advertises console read/write capabilities and `gpio` advertises control;
+actual GPIO operations belong to Milestone 5. When listing `/dev`, `ls` combines
+persistent LittleFS entries with virtual devices.
+
 Current shell limits:
 
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      12
-#define MINIOS_SHELL_MAX_COMMANDS  16
+#define MINIOS_SHELL_MAX_COMMANDS  20
 ```
 
 The parser currently supports commands and space-separated arguments only. Pipes, redirection, wildcards, and variable expansion are not supported yet.
@@ -419,7 +455,7 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 233 KiB with the current ESP-IDF configuration.
+The current build generates `build/minios.bin` and uses approximately 235 KiB with the current ESP-IDF configuration.
 
 ### Adding a command
 
@@ -474,8 +510,8 @@ SPDX identifier: `Apache-2.0`.
 | 1 | Shell, parser, registry, and basic commands | Complete |
 | 2 | Persistent configuration using NVS | Complete |
 | 3 | LittleFS and filesystem commands | Complete |
-| 4 | Device Manager | Next |
-| 5 | GPIO, I²C, and SPI | Planned |
+| 4 | Device Manager | Complete |
+| 5 | GPIO, I²C, and SPI | Next |
 | 6 | Wi-Fi, ping, and network configuration | Planned |
 | 7 | Remote TCP shell | Planned |
 | 8 | `/boot/startup.rc` boot script | Future |

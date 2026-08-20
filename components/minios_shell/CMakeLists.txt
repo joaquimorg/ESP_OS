@@ -7,6 +7,7 @@ idf_component_register(
         "commands/cmd_cd.c"
         "commands/cmd_clear.c"
         "commands/cmd_config.c"
+        "commands/cmd_device.c"
         "commands/cmd_echo.c"
         "commands/cmd_help.c"
         "commands/cmd_info.c"
@@ -20,5 +21,5 @@ idf_component_register(
         "commands/cmd_version.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
-    REQUIRES minios_console minios_api minios_config minios_fs
+    REQUIRES minios_console minios_api minios_config minios_device minios_fs
 )

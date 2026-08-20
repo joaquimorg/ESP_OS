@@ -31,6 +31,20 @@
 #define OS_FS_NOT_EMPTY -7
 #define OS_FS_PATH_TOO_LONG -8
 
+#define OS_DEVICE_MAX 8
+#define OS_DEVICE_NAME_MAX 15
+
+#define OS_DEVICE_OK 0
+#define OS_DEVICE_ERROR -1
+#define OS_DEVICE_INVALID_ARGUMENT -2
+#define OS_DEVICE_NOT_FOUND -3
+#define OS_DEVICE_ALREADY_EXISTS -4
+#define OS_DEVICE_REGISTRY_FULL -5
+
+#define OS_DEVICE_CAP_READ (1U << 0)
+#define OS_DEVICE_CAP_WRITE (1U << 1)
+#define OS_DEVICE_CAP_CONTROL (1U << 2)
+
 typedef int (*os_config_list_callback_t)(const char *key,
                                          const char *value,
                                          void *context);
@@ -39,6 +53,19 @@ typedef int (*os_fs_list_callback_t)(const char *name, int is_directory,
                                      size_t size, void *context);
 typedef int (*os_fs_read_callback_t)(const char *data, size_t length,
                                      void *context);
+
+typedef enum {
+    OS_DEVICE_CLASS_CHARACTER = 0,
+    OS_DEVICE_CLASS_CONTROLLER,
+} os_device_class_t;
+
+typedef struct minios_device {
+    const char *name;
+    os_device_class_t device_class;
+    const char *driver;
+    const char *description;
+    uint32_t capabilities;
+} minios_device_t;
 
 typedef struct {
     size_t total;
@@ -66,6 +93,7 @@ int os_config_delete(const char *key);
 int os_config_list(os_config_list_callback_t callback, void *context);
 
 int os_fs_init(void);
+int os_fs_resolve_path(const char *path, char *resolved, size_t length);
 int os_fs_getcwd(char *path, size_t length);
 int os_fs_chdir(const char *path);
 int os_fs_list(const char *path, os_fs_list_callback_t callback, void *context);
@@ -73,3 +101,9 @@ int os_fs_read(const char *path, os_fs_read_callback_t callback, void *context);
 int os_fs_write(const char *path, const char *data, int append);
 int os_fs_mkdir(const char *path);
 int os_fs_remove(const char *path);
+
+int os_device_init(void);
+int os_device_register(const minios_device_t *device);
+size_t os_device_count(void);
+const minios_device_t *os_device_at(size_t index);
+const minios_device_t *os_device_find(const char *name);
