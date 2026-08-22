@@ -8,6 +8,7 @@
 #include "minios_device.h"
 #include "minios_fs.h"
 #include "minios_hal.h"
+#include "minios_module.h"
 #include "minios_net.h"
 #include "minios_remote.h"
 #include "minios_shell.h"
@@ -79,6 +80,12 @@ void minios_kernel_start(void)
         return;
     }
     minios_console_write_text(&console, "[ OK ] Device Manager\r\n");
+
+    if (minios_module_init() != MINIOS_MODULE_OK) {
+        minios_console_write_text(&console, "[FAIL] Modules\r\n");
+        return;
+    }
+    minios_console_write_text(&console, "[ OK ] Modules\r\n");
 
     if (minios_shell_init(&console) != 0) {
         minios_console_write_text(&console, "[FAIL] Shell\r\n");

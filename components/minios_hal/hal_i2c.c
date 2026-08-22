@@ -1,13 +1,34 @@
 #include "minios_hal.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 #include "driver/i2c_master.h"
 
 #define I2C_PROBE_TIMEOUT_MS 20
+#define I2C_DEVICE_MAX 4U
+
+struct minios_hal_i2c_device {
+    i2c_master_dev_handle_t handle;
+    uint8_t address;
+    bool used;
+};
 
 static i2c_master_bus_handle_t i2c_bus;
 static minios_hal_i2c_info_t i2c_info;
+static minios_hal_i2c_device_t i2c_devices[I2C_DEVICE_MAX];
+
+static bool i2c_has_open_devices(void)
+{
+    size_t index;
+
+    for (index = 0U; index < I2C_DEVICE_MAX; ++index) {
+        if (i2c_devices[index].used) {
+            return true;
+        }
+    }
+    return false;
+}
 
 int minios_hal_i2c_configure(int sda, int scl)
 {
@@ -37,6 +58,9 @@ int minios_hal_i2c_configure(int sda, int scl)
                                     (scl != i2c_info.scl))))) {
         return MINIOS_HAL_BUSY;
     }
+    if ((i2c_bus != NULL) && i2c_has_open_devices()) {
+        return MINIOS_HAL_BUSY;
+    }
     if (i2c_bus != NULL) {
         if (i2c_del_master_bus(i2c_bus) != ESP_OK) {
             return MINIOS_HAL_BUSY;
@@ -55,6 +79,75 @@ int minios_hal_i2c_configure(int sda, int scl)
     i2c_info.initialized = 1;
     i2c_info.sda = sda;
     i2c_info.scl = scl;
+    return MINIOS_HAL_OK;
+}
+
+int minios_hal_i2c_device_open(uint8_t address, uint32_t frequency,
+                               minios_hal_i2c_device_t **device)
+{
+    i2c_device_config_t configuration = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = address,
+        .scl_speed_hz = frequency,
+    };
+    size_t index;
+
+    if ((device == NULL) || (address < 0x03U) || (address > 0x77U) ||
+        (frequency == 0U)) {
+        return MINIOS_HAL_INVALID_ARGUMENT;
+    }
+    if (i2c_bus == NULL) {
+        return MINIOS_HAL_NOT_INITIALIZED;
+    }
+    for (index = 0U; index < I2C_DEVICE_MAX; ++index) {
+        if (i2c_devices[index].used &&
+            (i2c_devices[index].address == address)) {
+            return MINIOS_HAL_BUSY;
+        }
+    }
+    for (index = 0U; index < I2C_DEVICE_MAX; ++index) {
+        if (!i2c_devices[index].used) {
+            if (i2c_master_bus_add_device(i2c_bus, &configuration,
+                                          &i2c_devices[index].handle) != ESP_OK) {
+                return MINIOS_HAL_ERROR;
+            }
+            i2c_devices[index].address = address;
+            i2c_devices[index].used = true;
+            *device = &i2c_devices[index];
+            return MINIOS_HAL_OK;
+        }
+    }
+    return MINIOS_HAL_BUSY;
+}
+
+int minios_hal_i2c_device_write(minios_hal_i2c_device_t *device,
+                                const uint8_t *data, size_t length,
+                                uint32_t timeout_ms)
+{
+    esp_err_t error;
+
+    if ((device == NULL) || !device->used || (data == NULL) ||
+        (length == 0U) || (length > MINIOS_HAL_I2C_MAX_TRANSFER) ||
+        (timeout_ms == 0U)) {
+        return MINIOS_HAL_INVALID_ARGUMENT;
+    }
+    error = i2c_master_transmit(device->handle, data, length,
+                                (int)timeout_ms);
+    if (error == ESP_ERR_TIMEOUT) {
+        return MINIOS_HAL_TIMEOUT;
+    }
+    return (error == ESP_OK) ? MINIOS_HAL_OK : MINIOS_HAL_ERROR;
+}
+
+int minios_hal_i2c_device_close(minios_hal_i2c_device_t *device)
+{
+    if ((device == NULL) || !device->used) {
+        return MINIOS_HAL_INVALID_ARGUMENT;
+    }
+    if (i2c_master_bus_rm_device(device->handle) != ESP_OK) {
+        return MINIOS_HAL_BUSY;
+    }
+    memset(device, 0, sizeof(*device));
     return MINIOS_HAL_OK;
 }
 

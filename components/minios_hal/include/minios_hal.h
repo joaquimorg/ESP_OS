@@ -11,6 +11,7 @@
 #define MINIOS_HAL_TIMEOUT -5
 
 #define MINIOS_HAL_I2C_DEFAULT_FREQUENCY 100000U
+#define MINIOS_HAL_I2C_MAX_TRANSFER 128U
 
 #define MINIOS_HAL_SPI_DEFAULT_FREQUENCY 1000000U
 #define MINIOS_HAL_SPI_MAX_TRANSFER 32U
@@ -34,6 +35,7 @@ typedef struct {
 } minios_hal_gpio_info_t;
 
 typedef int (*minios_hal_i2c_scan_callback_t)(uint8_t address, void *context);
+typedef struct minios_hal_i2c_device minios_hal_i2c_device_t;
 
 typedef struct {
     int initialized;
@@ -64,6 +66,12 @@ int minios_hal_i2c_configure(int sda, int scl);
 void minios_hal_i2c_info(minios_hal_i2c_info_t *info);
 int minios_hal_i2c_scan(minios_hal_i2c_scan_callback_t callback,
                         void *context, size_t *found);
+int minios_hal_i2c_device_open(uint8_t address, uint32_t frequency,
+                               minios_hal_i2c_device_t **device);
+int minios_hal_i2c_device_write(minios_hal_i2c_device_t *device,
+                                const uint8_t *data, size_t length,
+                                uint32_t timeout_ms);
+int minios_hal_i2c_device_close(minios_hal_i2c_device_t *device);
 
 int minios_hal_spi_configure(int mosi, int miso, int sclk, int cs,
                              uint32_t frequency);

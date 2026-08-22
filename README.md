@@ -4,11 +4,11 @@
 
 MiniOS é um pequeno sistema operativo/runtime modular para microcontroladores ESP32, desenvolvido em C sobre ESP-IDF e FreeRTOS. O projeto inspira-se em conceitos do CP/M e Unix, adaptados às limitações e necessidades de um microcontrolador.
 
-A versão atual é a **MiniOS 0.80**, direcionada inicialmente ao **ESP32-C3**.
+A versão atual é a **MiniOS 0.90**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3, 4, 5, 6, 7 e 8 estão implementadas:
+As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8 e 9 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -24,9 +24,10 @@ As Milestones 0, 1, 2, 3, 4, 5, 6, 7 e 8 estão implementadas:
 - HAL e comandos para GPIO, I²C e SPI;
 - Wi-Fi station, configuração IPv4, DNS e ping ICMP;
 - shell remota TCP com a mesma command registry da consola UART;
-- shell scripting com variáveis, controlo de fluxo e `/boot/startup.rc`.
+- shell scripting com variáveis, controlo de fluxo e `/boot/startup.rc`;
+- gestão de módulos compilados e módulo OLED SSD1315 128×64 sobre I²C.
 
-Ainda não estão implementados módulos, aplicações externas ou carregamento ELF.
+Ainda não estão implementadas aplicações externas ou carregamento ELF.
 
 ## Arquitetura
 
@@ -75,6 +76,7 @@ ESP_OS/
     ├── minios_fs/
     ├── minios_hal/
     ├── minios_kernel/
+    ├── minios_module/
     ├── minios_net/
     └── minios_shell/
         └── commands/
@@ -87,7 +89,7 @@ O documento [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) contém a arquitetura compl
 Depois do arranque, o sistema apresenta:
 
 ```text
-MiniOS 0.80
+MiniOS 0.90
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -96,6 +98,7 @@ Copyright 2026 joaquim.org
 [ OK ] Network
 [ OK ] Filesystem
 [ OK ] Device Manager
+[ OK ] Modules
 [ OK ] Shell
 [----] /boot/startup.rc not found
 
@@ -117,6 +120,7 @@ Comandos disponíveis:
 | `clear` | Limpa um terminal compatível com sequências ANSI |
 | `config` | Gere configuração persistente em NVS |
 | `device` | Lista e descreve os dispositivos registados |
+| `module` | Lista, carrega e descarrega módulos compilados |
 | `gpio` | Configura, lê e escreve pinos GPIO |
 | `i2c` | Configura e pesquisa o bus I²C |
 | `spi` | Configura e transfere bytes por SPI |
@@ -173,6 +177,8 @@ Operações do Device Manager:
 device list
 device info uart0
 device info /dev/gpio
+device write display0 MiniOS 0.90
+device control display0 clear
 ls /dev
 ```
 
@@ -180,6 +186,41 @@ O registry aceita até oito dispositivos sem alocação dinâmica e contém `uar
 `gpio`, `i2c0`, `spi0` e `wifi0`. O comando `ls` combina o conteúdo persistente do
 LittleFS com os dispositivos virtuais quando lista `/dev`. O namespace `/dev`
 é reservado: comandos de ficheiros não criam, alteram ou removem dispositivos.
+
+## Módulos e OLED SSD1315
+
+Os módulos do Milestone 9 estão compilados no firmware. `module load` ativa um
+módulo e os dispositivos que fornece; não carrega código externo do filesystem
+(isso pertence ao Milestone 11). O primeiro módulo incluído controla displays
+OLED monocromáticos SSD1315 128×64 através de I²C.
+
+Um novo driver compilado fornece um `minios_module_descriptor_t`, com callbacks
+de `load` e `unload`, e é adicionado ao registry através de
+`minios_module_register()`. Assim pode reservar recursos na HAL durante o load,
+registar um ou mais dispositivos, e desfazer essas operações no unload.
+
+Ligação e utilização, usando GPIO 8/9 apenas como exemplo:
+
+```text
+i2c init 8 9
+i2c scan
+module list
+module load ssd1315
+device info display0
+device write display0 Ola MiniOS
+device control display0 contrast 160
+device control display0 invert
+device control display0 normal
+device control display0 clear
+module unload ssd1315
+```
+
+O endereço I²C por omissão é `0x3c`; pode ser substituído, por exemplo, com
+`module load ssd1315 0x3d`. O módulo regista `/dev/display0`, mantém um framebuffer
+estático de 1024 bytes e disponibiliza `clear`, `refresh`, `contrast`, `on`,
+`off`, `invert` e `normal`. A fonte compacta converte minúsculas em maiúsculas e
+suporta `A-Z`, `0-9`, espaço e pontuação básica. Enquanto o módulo estiver
+carregado, o bus I²C não pode ser reconfigurado.
 
 ## Shell scripting
 
@@ -429,7 +470,7 @@ Identificador SPDX: `Apache-2.0`.
 | 6 | Wi-Fi, ping e configuração de rede | Concluída |
 | 7 | Shell remota por TCP | Concluída |
 | 8 | Shell scripting e `/boot/startup.rc` | Concluída |
-| 9 | Gestão de módulos compilados | Futura |
+| 9 | Gestão de módulos compilados | Concluída |
 | 10 | Gestão de aplicações e processos | Futura |
 | 11 | Carregamento de aplicações ELF | Futura |
 | 12 | Package manager e instalação via rede | Futura |
@@ -444,11 +485,11 @@ O desenvolvimento deve continuar milestone a milestone, preservando o desacoplam
 
 MiniOS is a small modular operating system/runtime for ESP32 microcontrollers, written in C on top of ESP-IDF and FreeRTOS. It takes inspiration from CP/M and Unix concepts while adapting them to the constraints and requirements of a microcontroller.
 
-The current release is **MiniOS 0.80**, initially targeting the **ESP32-C3**.
+The current release is **MiniOS 0.90**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, 4, 5, 6, 7, and 8 are implemented:
+Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -464,9 +505,10 @@ Milestones 0, 1, 2, 3, 4, 5, 6, 7, and 8 are implemented:
 - HAL and commands for GPIO, I²C, and SPI;
 - Wi-Fi station mode, IPv4 configuration, DNS, and ICMP ping;
 - a TCP remote shell sharing the UART command registry;
-- shell scripting with variables, control flow, and `/boot/startup.rc`.
+- shell scripting with variables, control flow, and `/boot/startup.rc`;
+- compiled module management and an I²C SSD1315 128×64 OLED module.
 
-Modules, external applications, and ELF loading are not implemented yet.
+External applications and ELF loading are not implemented yet.
 
 ### Architecture
 
@@ -515,6 +557,7 @@ ESP_OS/
     ├── minios_fs/
     ├── minios_hal/
     ├── minios_kernel/
+    ├── minios_module/
     ├── minios_net/
     └── minios_shell/
         └── commands/
@@ -527,7 +570,7 @@ See [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) for the complete architecture, desi
 The system displays the following after boot:
 
 ```text
-MiniOS 0.80
+MiniOS 0.90
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -535,6 +578,7 @@ Copyright 2026 joaquim.org
 [ OK ] Config
 [ OK ] Filesystem
 [ OK ] Device Manager
+[ OK ] Modules
 [ OK ] Shell
 [----] /boot/startup.rc not found
 
@@ -556,6 +600,7 @@ Available commands:
 | `clear` | Clears a terminal that supports ANSI sequences |
 | `config` | Manages persistent configuration in NVS |
 | `device` | Lists and describes registered devices |
+| `module` | Lists, loads, and unloads compiled modules |
 | `gpio` | Configures, reads, and writes GPIO pins |
 | `i2c` | Configures and scans the I²C bus |
 | `spi` | Configures and transfers bytes over SPI |
@@ -612,6 +657,8 @@ Device Manager operations:
 device list
 device info uart0
 device info /dev/gpio
+device write display0 MiniOS 0.90
+device control display0 clear
 ls /dev
 ```
 
@@ -619,6 +666,41 @@ The registry holds up to eight devices without dynamic allocation and contains
 `uart0`, `gpio`, `i2c0`, `spi0`, and `wifi0`. When listing `/dev`, `ls` combines persistent
 LittleFS entries with virtual devices. The `/dev` namespace is reserved, so
 filesystem commands cannot create, modify, or remove devices.
+
+### Modules and SSD1315 OLED
+
+Milestone 9 modules are compiled into the firmware. `module load` activates a
+module and its devices; it does not load external code from the filesystem
+(that belongs to Milestone 11). The first included module controls monochrome
+SSD1315 128×64 OLED displays over I²C.
+
+A new compiled driver provides a `minios_module_descriptor_t` with `load` and
+`unload` callbacks and adds it to the registry through
+`minios_module_register()`. It can therefore reserve HAL resources and register
+one or more devices during load, then reverse those operations during unload.
+
+Setup and usage, with GPIO 8/9 only as an example:
+
+```text
+i2c init 8 9
+i2c scan
+module list
+module load ssd1315
+device info display0
+device write display0 Hello MiniOS
+device control display0 contrast 160
+device control display0 invert
+device control display0 normal
+device control display0 clear
+module unload ssd1315
+```
+
+The default I²C address is `0x3c`; override it with, for example,
+`module load ssd1315 0x3d`. The module registers `/dev/display0`, keeps a static
+1024-byte framebuffer, and provides `clear`, `refresh`, `contrast`, `on`, `off`,
+`invert`, and `normal`. Its compact font converts lowercase to uppercase and
+supports `A-Z`, `0-9`, spaces, and basic punctuation. The I²C bus cannot be
+reconfigured while the module is loaded.
 
 ### Shell scripting
 
@@ -865,7 +947,7 @@ SPDX identifier: `Apache-2.0`.
 | 6 | Wi-Fi, ping, and network configuration | Complete |
 | 7 | Remote TCP shell | Complete |
 | 8 | Shell scripting and `/boot/startup.rc` | Complete |
-| 9 | Compiled module management | Future |
+| 9 | Compiled module management | Complete |
 | 10 | Application and process management | Future |
 | 11 | ELF application loading | Future |
 | 12 | Package manager and network installation | Future |

@@ -20,6 +20,7 @@ int minios_cmd_i2c_register(void);
 int minios_cmd_ls_register(void);
 int minios_cmd_mem_register(void);
 int minios_cmd_mkdir_register(void);
+int minios_cmd_module_register(void);
 int minios_cmd_pwd_register(void);
 int minios_cmd_ping_register(void);
 int minios_cmd_reboot_register(void);

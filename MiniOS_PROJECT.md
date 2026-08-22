@@ -1363,7 +1363,7 @@ por contexto e 60000 ms por `sleep`.
 
 ## Milestone 9 — Modules
 
-Implementar:
+Implementado:
 
 ```text
 module list
@@ -1371,7 +1371,15 @@ module load
 module unload
 ```
 
-Drivers compilados no firmware.
+Os drivers são compilados no firmware e geridos por um registry estático sem
+alocação dinâmica. `module load` ativa o driver e regista os dispositivos que
+este fornece no Device Manager; `module unload` liberta os recursos e remove os
+dispositivos. Código externo e ELF continuam fora deste milestone.
+
+O primeiro módulo é `ssd1315`, para OLED monocromático 128×64 sobre I²C. Usa um
+framebuffer estático de 1024 bytes, endereço `0x3c` por omissão e regista
+`/dev/display0`. O Device Manager passou a suportar escrita, controlo e remoção
+de dispositivos, e a HAL I²C passou a gerir até quatro dispositivos estáticos.
 
 ---
 

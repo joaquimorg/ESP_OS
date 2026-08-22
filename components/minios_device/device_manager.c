@@ -123,6 +123,63 @@ int os_device_register(const minios_device_t *device)
     return OS_DEVICE_OK;
 }
 
+int os_device_unregister(const char *name)
+{
+    const minios_device_t *device = os_device_find(name);
+    size_t index;
+
+    if (device == NULL) {
+        return OS_DEVICE_NOT_FOUND;
+    }
+    for (index = 0U; index < device_count; ++index) {
+        if (device_registry[index] == device) {
+            size_t next;
+
+            for (next = index + 1U; next < device_count; ++next) {
+                device_registry[next - 1U] = device_registry[next];
+            }
+            device_registry[--device_count] = NULL;
+            return OS_DEVICE_OK;
+        }
+    }
+    return OS_DEVICE_NOT_FOUND;
+}
+
+int os_device_write(const char *name, const void *data, size_t length)
+{
+    const minios_device_t *device = os_device_find(name);
+
+    if ((data == NULL) && (length != 0U)) {
+        return OS_DEVICE_INVALID_ARGUMENT;
+    }
+    if (device == NULL) {
+        return OS_DEVICE_NOT_FOUND;
+    }
+    if (((device->capabilities & OS_DEVICE_CAP_WRITE) == 0U) ||
+        (device->write == NULL)) {
+        return OS_DEVICE_NOT_SUPPORTED;
+    }
+    return device->write(data, length, device->context);
+}
+
+int os_device_control(const char *name, const char *operation,
+                      const char *value)
+{
+    const minios_device_t *device = os_device_find(name);
+
+    if ((operation == NULL) || (operation[0] == '\0')) {
+        return OS_DEVICE_INVALID_ARGUMENT;
+    }
+    if (device == NULL) {
+        return OS_DEVICE_NOT_FOUND;
+    }
+    if (((device->capabilities & OS_DEVICE_CAP_CONTROL) == 0U) ||
+        (device->control == NULL)) {
+        return OS_DEVICE_NOT_SUPPORTED;
+    }
+    return device->control(operation, value, device->context);
+}
+
 int os_device_init(void)
 {
     device_count = 0U;

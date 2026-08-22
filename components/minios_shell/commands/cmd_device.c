@@ -39,6 +39,32 @@ static void print_capabilities(uint32_t capabilities)
     minios_shell_write("\r\n");
 }
 
+static int report_device_error(const char *operation, const char *name,
+                               int result)
+{
+    const char *reason;
+
+    switch (result) {
+    case OS_DEVICE_INVALID_ARGUMENT:
+        reason = "invalid argument";
+        break;
+    case OS_DEVICE_NOT_FOUND:
+        reason = "not found";
+        break;
+    case OS_DEVICE_NOT_SUPPORTED:
+        reason = "operation not supported";
+        break;
+    case OS_DEVICE_BUSY:
+        reason = "device busy";
+        break;
+    default:
+        reason = "device error";
+        break;
+    }
+    minios_shell_printf("device %s: %s: %s\r\n", operation, name, reason);
+    return -1;
+}
+
 static int device_list(int argc)
 {
     size_t index;
@@ -82,10 +108,61 @@ static int device_info(int argc, char **argv)
     return 0;
 }
 
+static int device_write(int argc, char **argv)
+{
+    char text[MINIOS_SHELL_MAX_LINE];
+    size_t used = 0U;
+    int index;
+    int result;
+
+    if (argc < 4) {
+        minios_shell_write("Usage: device write <name> <text>\r\n");
+        return -1;
+    }
+    for (index = 3; index < argc; ++index) {
+        size_t length = strlen(argv[index]);
+
+        if (used != 0U) {
+            if (used >= (sizeof(text) - 1U)) {
+                minios_shell_write("device write: text is too long\r\n");
+                return -1;
+            }
+            text[used++] = ' ';
+        }
+        if (length > ((sizeof(text) - 1U) - used)) {
+            minios_shell_write("device write: text is too long\r\n");
+            return -1;
+        }
+        memcpy(text + used, argv[index], length);
+        used += length;
+    }
+    text[used] = '\0';
+    result = os_device_write(argv[2], text, used);
+    return (result == OS_DEVICE_OK)
+               ? 0 : report_device_error("write", argv[2], result);
+}
+
+static int device_control(int argc, char **argv)
+{
+    const char *value;
+    int result;
+
+    if ((argc != 4) && (argc != 5)) {
+        minios_shell_write(
+            "Usage: device control <name> <operation> [value]\r\n");
+        return -1;
+    }
+    value = (argc == 5) ? argv[4] : NULL;
+    result = os_device_control(argv[2], argv[3], value);
+    return (result == OS_DEVICE_OK)
+               ? 0 : report_device_error("control", argv[2], result);
+}
+
 static int cmd_device(int argc, char **argv)
 {
     if (argc < 2) {
-        minios_shell_write("Usage: device <list|info> [name]\r\n");
+        minios_shell_write(
+            "Usage: device <list|info|write|control> ...\r\n");
         return -1;
     }
     if (strcmp(argv[1], "list") == 0) {
@@ -94,14 +171,21 @@ static int cmd_device(int argc, char **argv)
     if (strcmp(argv[1], "info") == 0) {
         return device_info(argc, argv);
     }
-    minios_shell_write("Unknown device operation. Use list or info.\r\n");
+    if (strcmp(argv[1], "write") == 0) {
+        return device_write(argc, argv);
+    }
+    if (strcmp(argv[1], "control") == 0) {
+        return device_control(argc, argv);
+    }
+    minios_shell_write(
+        "Unknown device operation. Use list, info, write, or control.\r\n");
     return -1;
 }
 
 static const minios_command_t device_command = {
     .name = "device",
     .description = "Inspect registered devices",
-    .usage = "device <list|info> [name]",
+    .usage = "device <list|info|write|control> ...",
     .handler = cmd_device,
 };
 

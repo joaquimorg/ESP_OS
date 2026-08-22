@@ -17,6 +17,7 @@ set(MINIOS_SHELL_SOURCES
     "commands/cmd_ls.c"
     "commands/cmd_mem.c"
     "commands/cmd_mkdir.c"
+    "commands/cmd_module.c"
     "commands/cmd_pwd.c"
     "commands/cmd_reboot.c"
     "commands/cmd_rm.c"
@@ -38,5 +39,5 @@ idf_component_register(
     SRCS ${MINIOS_SHELL_SOURCES}
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
-    REQUIRES minios_console minios_api minios_config minios_device minios_fs minios_hal minios_net
+    REQUIRES minios_console minios_api minios_config minios_device minios_fs minios_hal minios_module minios_net
 )

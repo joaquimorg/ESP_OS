@@ -43,6 +43,7 @@ static int register_builtin_commands(void)
         (minios_cmd_reboot_register() != 0) ||
         (minios_cmd_clear_register() != 0) ||
         (minios_cmd_device_register() != 0) ||
+        (minios_cmd_module_register() != 0) ||
 #if CONFIG_MINIOS_ENABLE_NETWORK
         (minios_cmd_wifi_register() != 0) ||
         (minios_cmd_ifconfig_register() != 0) ||

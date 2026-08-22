@@ -5,7 +5,7 @@
 
 #define MINIOS_API_VERSION 2
 #define MINIOS_NAME "MiniOS"
-#define MINIOS_VERSION "0.80"
+#define MINIOS_VERSION "0.90"
 #define MINIOS_COPYRIGHT "Copyright 2026 joaquim.org"
 
 #define OS_CONFIG_KEY_MAX_LENGTH 63
@@ -41,6 +41,8 @@
 #define OS_DEVICE_NOT_FOUND -3
 #define OS_DEVICE_ALREADY_EXISTS -4
 #define OS_DEVICE_REGISTRY_FULL -5
+#define OS_DEVICE_NOT_SUPPORTED -6
+#define OS_DEVICE_BUSY -7
 
 #define OS_DEVICE_CAP_READ (1U << 0)
 #define OS_DEVICE_CAP_WRITE (1U << 1)
@@ -75,12 +77,20 @@ typedef enum {
     OS_DEVICE_CLASS_CONTROLLER,
 } os_device_class_t;
 
+typedef int (*os_device_write_handler_t)(const void *data, size_t length,
+                                         void *context);
+typedef int (*os_device_control_handler_t)(const char *operation,
+                                           const char *value, void *context);
+
 typedef struct minios_device {
     const char *name;
     os_device_class_t device_class;
     const char *driver;
     const char *description;
     uint32_t capabilities;
+    os_device_write_handler_t write;
+    os_device_control_handler_t control;
+    void *context;
 } minios_device_t;
 
 typedef struct {
@@ -176,9 +186,13 @@ int os_fs_remove(const char *path);
 
 int os_device_init(void);
 int os_device_register(const minios_device_t *device);
+int os_device_unregister(const char *name);
 size_t os_device_count(void);
 const minios_device_t *os_device_at(size_t index);
 const minios_device_t *os_device_find(const char *name);
+int os_device_write(const char *name, const void *data, size_t length);
+int os_device_control(const char *name, const char *operation,
+                      const char *value);
 
 int os_net_init(void);
 int os_net_scan(os_net_scan_callback_t callback, void *context, size_t *found);
