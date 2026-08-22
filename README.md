@@ -211,6 +211,9 @@ ls /modules
 module load ssd1315
 device info display0
 device write display0 Ola MiniOS
+device control display0 newline
+device write display0 Segunda linha
+device write display0 --at 12 24 Texto em x12 y24
 device control display0 contrast 160
 device control display0 invert
 device control display0 normal
@@ -220,10 +223,13 @@ module unload ssd1315
 
 O endereço I²C por omissão é `0x3c`; pode ser substituído, por exemplo, com
 `module load ssd1315 0x3d`. O módulo regista `/dev/display0`, mantém um framebuffer
-estático de 1024 bytes e disponibiliza `clear`, `refresh`, `contrast`, `on`,
-`off`, `invert` e `normal`. A fonte compacta converte minúsculas em maiúsculas e
-suporta `A-Z`, `0-9`, espaço e pontuação básica. Enquanto o módulo estiver
-carregado, o bus I²C não pode ser reconfigurado.
+estático de 1024 bytes e disponibiliza `clear`, `refresh`, `newline`, `position`,
+`contrast`, `on`, `off`, `invert` e `normal`. `position <x> <y>` usa coordenadas
+em píxeis; para manter um carácter 5×7 totalmente visível, aceita `x=0..122` e
+`y=0..57`. Também é possível posicionar e escrever numa só operação com
+`device write display0 --at <x> <y> <texto>`. A fonte compacta converte
+minúsculas em maiúsculas e suporta `A-Z`, `0-9`, espaço e pontuação básica.
+Enquanto o módulo estiver carregado, o bus I²C não pode ser reconfigurado.
 
 ## Shell scripting
 
@@ -694,6 +700,9 @@ ls /modules
 module load ssd1315
 device info display0
 device write display0 Hello MiniOS
+device control display0 newline
+device write display0 Second line
+device write display0 --at 12 24 Text at x12 y24
 device control display0 contrast 160
 device control display0 invert
 device control display0 normal
@@ -703,10 +712,13 @@ module unload ssd1315
 
 The default I²C address is `0x3c`; override it with, for example,
 `module load ssd1315 0x3d`. The module registers `/dev/display0`, keeps a static
-1024-byte framebuffer, and provides `clear`, `refresh`, `contrast`, `on`, `off`,
-`invert`, and `normal`. Its compact font converts lowercase to uppercase and
-supports `A-Z`, `0-9`, spaces, and basic punctuation. The I²C bus cannot be
-reconfigured while the module is loaded.
+1024-byte framebuffer, and provides `clear`, `refresh`, `newline`, `position`,
+`contrast`, `on`, `off`, `invert`, and `normal`. `position <x> <y>` uses pixel
+coordinates; to keep a complete 5×7 character visible, it accepts `x=0..122`
+and `y=0..57`. Positioning and writing can also be combined with
+`device write display0 --at <x> <y> <text>`. Its compact font converts lowercase
+to uppercase and supports `A-Z`, `0-9`, spaces, and basic punctuation. The I²C
+bus cannot be reconfigured while the module is loaded.
 
 ### Shell scripting
 

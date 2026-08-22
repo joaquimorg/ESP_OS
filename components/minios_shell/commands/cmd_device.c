@@ -1,6 +1,7 @@
 #include "shell_internal.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "minios_device.h"
@@ -112,14 +113,37 @@ static int device_write(int argc, char **argv)
 {
     char text[MINIOS_SHELL_MAX_LINE];
     size_t used = 0U;
+    int text_start = 3;
     int index;
     int result;
 
     if (argc < 4) {
-        minios_shell_write("Usage: device write <name> <text>\r\n");
+        minios_shell_write(
+            "Usage: device write <name> [--at <x> <y>] <text>\r\n");
         return -1;
     }
-    for (index = 3; index < argc; ++index) {
+    if (strcmp(argv[3], "--at") == 0) {
+        char position[24];
+        int written;
+
+        if (argc < 7) {
+            minios_shell_write(
+                "Usage: device write <name> --at <x> <y> <text>\r\n");
+            return -1;
+        }
+        written = snprintf(position, sizeof(position), "%s %s", argv[4],
+                           argv[5]);
+        if ((written < 0) || ((size_t)written >= sizeof(position))) {
+            return report_device_error("position", argv[2],
+                                       OS_DEVICE_INVALID_ARGUMENT);
+        }
+        result = os_device_control(argv[2], "position", position);
+        if (result != OS_DEVICE_OK) {
+            return report_device_error("position", argv[2], result);
+        }
+        text_start = 6;
+    }
+    for (index = text_start; index < argc; ++index) {
         size_t length = strlen(argv[index]);
 
         if (used != 0U) {
@@ -144,15 +168,38 @@ static int device_write(int argc, char **argv)
 
 static int device_control(int argc, char **argv)
 {
-    const char *value;
+    char value_buffer[MINIOS_SHELL_MAX_LINE];
+    const char *value = NULL;
+    size_t used = 0U;
+    int index;
     int result;
 
-    if ((argc != 4) && (argc != 5)) {
+    if (argc < 4) {
         minios_shell_write(
-            "Usage: device control <name> <operation> [value]\r\n");
+            "Usage: device control <name> <operation> [value ...]\r\n");
         return -1;
     }
-    value = (argc == 5) ? argv[4] : NULL;
+    for (index = 4; index < argc; ++index) {
+        size_t length = strlen(argv[index]);
+
+        if (used != 0U) {
+            if (used >= (sizeof(value_buffer) - 1U)) {
+                return report_device_error("control", argv[2],
+                                           OS_DEVICE_INVALID_ARGUMENT);
+            }
+            value_buffer[used++] = ' ';
+        }
+        if (length > ((sizeof(value_buffer) - 1U) - used)) {
+            return report_device_error("control", argv[2],
+                                       OS_DEVICE_INVALID_ARGUMENT);
+        }
+        memcpy(value_buffer + used, argv[index], length);
+        used += length;
+    }
+    if (used != 0U) {
+        value_buffer[used] = '\0';
+        value = value_buffer;
+    }
     result = os_device_control(argv[2], argv[3], value);
     return (result == OS_DEVICE_OK)
                ? 0 : report_device_error("control", argv[2], result);

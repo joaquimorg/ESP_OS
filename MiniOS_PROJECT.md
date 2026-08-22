@@ -1384,6 +1384,8 @@ O primeiro módulo é `ssd1315`, para OLED monocromático 128×64 sobre I²C. Us
 framebuffer estático de 1024 bytes, endereço `0x3c` por omissão e regista
 `/dev/display0`. O Device Manager passou a suportar escrita, controlo e remoção
 de dispositivos, e a HAL I²C passou a gerir até quatro dispositivos estáticos.
+O display suporta mudança explícita de linha, posicionamento em coordenadas de
+píxel e escrita direta com `device write display0 --at <x> <y> <texto>`.
 
 ---
 

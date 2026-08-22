@@ -19,11 +19,19 @@
 typedef struct {
     minios_hal_i2c_device_t *i2c_device;
     uint8_t framebuffer[SSD1315_BUFFER_SIZE];
-    uint8_t cursor_column;
-    uint8_t cursor_page;
+    uint8_t cursor_x;
+    uint8_t cursor_y;
 } ssd1315_state_t;
 
 static ssd1315_state_t display_state;
+
+static void move_to_next_line(void)
+{
+    display_state.cursor_x = 0U;
+    display_state.cursor_y =
+        (display_state.cursor_y > (SSD1315_HEIGHT - 9U))
+            ? 0U : (uint8_t)(display_state.cursor_y + 8U);
+}
 
 static int send_commands(const uint8_t *commands, size_t length)
 {
@@ -115,29 +123,39 @@ static void glyph_for_character(char character, uint8_t glyph[5])
 static void draw_character(char character)
 {
     uint8_t glyph[5];
-    size_t index;
+    size_t column;
+    size_t row;
 
     if (character == '\n') {
-        display_state.cursor_column = 0U;
-        display_state.cursor_page =
-            (uint8_t)((display_state.cursor_page + 1U) % SSD1315_PAGES);
+        move_to_next_line();
         return;
     }
-    if ((display_state.cursor_column + 6U) > SSD1315_WIDTH) {
-        display_state.cursor_column = 0U;
-        display_state.cursor_page =
-            (uint8_t)((display_state.cursor_page + 1U) % SSD1315_PAGES);
+    if ((display_state.cursor_x + 6U) > SSD1315_WIDTH) {
+        move_to_next_line();
     }
     glyph_for_character(character, glyph);
-    for (index = 0U; index < 5U; ++index) {
-        display_state.framebuffer[
-            ((size_t)display_state.cursor_page * SSD1315_WIDTH) +
-            display_state.cursor_column + index] = glyph[index];
+    for (column = 0U; column < 6U; ++column) {
+        uint8_t pixels = (column < 5U) ? glyph[column] : 0U;
+
+        for (row = 0U; row < 7U; ++row) {
+            size_t x = (size_t)display_state.cursor_x + column;
+            size_t y = (size_t)display_state.cursor_y + row;
+            size_t offset;
+            uint8_t mask;
+
+            if ((x >= SSD1315_WIDTH) || (y >= SSD1315_HEIGHT)) {
+                continue;
+            }
+            offset = ((y / 8U) * SSD1315_WIDTH) + x;
+            mask = (uint8_t)(1U << (y % 8U));
+            if ((pixels & (uint8_t)(1U << row)) != 0U) {
+                display_state.framebuffer[offset] |= mask;
+            } else {
+                display_state.framebuffer[offset] &= (uint8_t)~mask;
+            }
+        }
     }
-    display_state.framebuffer[
-        ((size_t)display_state.cursor_page * SSD1315_WIDTH) +
-        display_state.cursor_column + 5U] = 0U;
-    display_state.cursor_column += 6U;
+    display_state.cursor_x += 6U;
 }
 
 static int display_write(const void *data, size_t length, void *context)
@@ -169,6 +187,37 @@ static int parse_byte(const char *value, uint8_t *parsed)
     return 0;
 }
 
+static int parse_position(const char *value, uint8_t *x, uint8_t *y)
+{
+    char *end;
+    unsigned long parsed_x;
+    unsigned long parsed_y;
+
+    if ((value == NULL) || (x == NULL) || (y == NULL)) {
+        return -1;
+    }
+    parsed_x = strtoul(value, &end, 0);
+    if ((end == value) || ((*end != ' ') && (*end != '\t'))) {
+        return -1;
+    }
+    while ((*end == ' ') || (*end == '\t')) {
+        ++end;
+    }
+    value = end;
+    parsed_y = strtoul(value, &end, 0);
+    while ((*end == ' ') || (*end == '\t')) {
+        ++end;
+    }
+    if ((end == value) || (*end != '\0') ||
+        (parsed_x > (SSD1315_WIDTH - 6U)) ||
+        (parsed_y > (SSD1315_HEIGHT - 7U))) {
+        return -1;
+    }
+    *x = (uint8_t)parsed_x;
+    *y = (uint8_t)parsed_y;
+    return 0;
+}
+
 static int display_control(const char *operation, const char *value,
                            void *context)
 {
@@ -177,10 +226,25 @@ static int display_control(const char *operation, const char *value,
     (void)context;
     if (strcmp(operation, "clear") == 0) {
         memset(display_state.framebuffer, 0, sizeof(display_state.framebuffer));
-        display_state.cursor_column = 0U;
-        display_state.cursor_page = 0U;
+        display_state.cursor_x = 0U;
+        display_state.cursor_y = 0U;
         return (refresh_display() == MINIOS_MODULE_OK) ? OS_DEVICE_OK
                                                         : OS_DEVICE_ERROR;
+    }
+    if (strcmp(operation, "newline") == 0) {
+        draw_character('\n');
+        return OS_DEVICE_OK;
+    }
+    if (strcmp(operation, "position") == 0) {
+        uint8_t x;
+        uint8_t y;
+
+        if (parse_position(value, &x, &y) != 0) {
+            return OS_DEVICE_INVALID_ARGUMENT;
+        }
+        display_state.cursor_x = x;
+        display_state.cursor_y = y;
+        return OS_DEVICE_OK;
     }
     if (strcmp(operation, "refresh") == 0) {
         return (refresh_display() == MINIOS_MODULE_OK) ? OS_DEVICE_OK
