@@ -1,6 +1,7 @@
 set(MINIOS_SHELL_SOURCES
     "shell.c"
     "shell_parser.c"
+    "shell_script.c"
     "commands/cmd_fs_common.c"
     "commands/cmd_hw_common.c"
     "commands/cmd_cat.c"
@@ -19,6 +20,7 @@ set(MINIOS_SHELL_SOURCES
     "commands/cmd_pwd.c"
     "commands/cmd_reboot.c"
     "commands/cmd_rm.c"
+    "commands/cmd_script.c"
     "commands/cmd_spi.c"
     "commands/cmd_uptime.c"
     "commands/cmd_version.c"

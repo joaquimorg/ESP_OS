@@ -4,11 +4,11 @@
 
 MiniOS é um pequeno sistema operativo/runtime modular para microcontroladores ESP32, desenvolvido em C sobre ESP-IDF e FreeRTOS. O projeto inspira-se em conceitos do CP/M e Unix, adaptados às limitações e necessidades de um microcontrolador.
 
-A versão atual é a **MiniOS 0.70**, direcionada inicialmente ao **ESP32-C3**.
+A versão atual é a **MiniOS 0.80**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3, 4, 5, 6 e 7 estão implementadas:
+As Milestones 0, 1, 2, 3, 4, 5, 6, 7 e 8 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -23,10 +23,10 @@ As Milestones 0, 1, 2, 3, 4, 5, 6 e 7 estão implementadas:
 - Device Manager com registry estático;
 - HAL e comandos para GPIO, I²C e SPI;
 - Wi-Fi station, configuração IPv4, DNS e ping ICMP;
-- shell remota TCP com a mesma command registry da consola UART.
+- shell remota TCP com a mesma command registry da consola UART;
+- shell scripting com variáveis, controlo de fluxo e `/boot/startup.rc`.
 
-Ainda não estão implementados scripts, módulos, aplicações externas ou
-carregamento ELF.
+Ainda não estão implementados módulos, aplicações externas ou carregamento ELF.
 
 ## Arquitetura
 
@@ -87,7 +87,7 @@ O documento [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) contém a arquitetura compl
 Depois do arranque, o sistema apresenta:
 
 ```text
-MiniOS 0.70
+MiniOS 0.80
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -97,6 +97,7 @@ Copyright 2026 joaquim.org
 [ OK ] Filesystem
 [ OK ] Device Manager
 [ OK ] Shell
+[----] /boot/startup.rc not found
 
 Type 'help' for available commands.
 
@@ -129,6 +130,8 @@ Comandos disponíveis:
 | `echo` | Escreve texto num ficheiro |
 | `mkdir` | Cria um diretório |
 | `rm` | Remove um ficheiro ou diretório vazio |
+| `run` | Executa um script num contexto de variáveis novo |
+| `source` | Executa um script no contexto atual |
 
 Operações de configuração:
 
@@ -155,8 +158,14 @@ pwd
 rm note.txt
 ```
 
-`echo <text> <file>` e `>` substituem o conteúdo; `>>` acrescenta. O texto está
-limitado a um argumento enquanto o parser não suportar aspas.
+`echo <text> <file>` e `>` substituem o conteúdo; `>>` acrescenta. Todos os
+argumentos entre `echo` e o operador/ficheiro são unidos com espaços, o que
+permite criar scripts diretamente na shell:
+
+```text
+echo set attempts 3 > /boot/startup.rc
+echo sleep 1000 >> /boot/startup.rc
+```
 
 Operações do Device Manager:
 
@@ -171,6 +180,36 @@ O registry aceita até oito dispositivos sem alocação dinâmica e contém `uar
 `gpio`, `i2c0`, `spi0` e `wifi0`. O comando `ls` combina o conteúdo persistente do
 LittleFS com os dispositivos virtuais quando lista `/dev`. O namespace `/dev`
 é reservado: comandos de ficheiros não criam, alteram ou removem dispositivos.
+
+## Shell scripting
+
+`run <file>` executa um script com variáveis novas. `source <file>` partilha as
+variáveis com o script que o invocou. Depois de inicializar a shell, o kernel
+tenta executar `/boot/startup.rc`; a ausência do ficheiro não interrompe o boot.
+
+```text
+# /boot/startup.rc
+set attempts 3
+repeat $attempts
+    wifi connect
+    if $? == 0
+        exit 0
+    else
+        sleep 1000
+    endif
+endrepeat
+exit 1
+```
+
+A linguagem suporta comentários `#`, `set <nome> <valor>`, expansão
+`$nome`/`${nome}`, o estado do último comando em `$?`, `sleep <ms>`,
+`if`/`else`/`endif`, `repeat`/`endrepeat` e `exit [estado]`. As condições aceitam
+`if <valor>`, `if <esquerda> == <direita>` e `!=`.
+
+Não há alocação dinâmica. Os limites são 4095 bytes e 96 linhas por ficheiro,
+oito variáveis, três scripts e oito blocos aninhados, 100 repetições por bloco,
+1000 instruções por contexto e 60000 ms por `sleep`. Valores com espaços entre
+aspas ainda não são suportados.
 
 ## Hardware
 
@@ -389,7 +428,7 @@ Identificador SPDX: `Apache-2.0`.
 | 5 | GPIO, I²C e SPI | Concluída |
 | 6 | Wi-Fi, ping e configuração de rede | Concluída |
 | 7 | Shell remota por TCP | Concluída |
-| 8 | Shell scripting e `/boot/startup.rc` | Futura |
+| 8 | Shell scripting e `/boot/startup.rc` | Concluída |
 | 9 | Gestão de módulos compilados | Futura |
 | 10 | Gestão de aplicações e processos | Futura |
 | 11 | Carregamento de aplicações ELF | Futura |
@@ -405,11 +444,11 @@ O desenvolvimento deve continuar milestone a milestone, preservando o desacoplam
 
 MiniOS is a small modular operating system/runtime for ESP32 microcontrollers, written in C on top of ESP-IDF and FreeRTOS. It takes inspiration from CP/M and Unix concepts while adapting them to the constraints and requirements of a microcontroller.
 
-The current release is **MiniOS 0.70**, initially targeting the **ESP32-C3**.
+The current release is **MiniOS 0.80**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, 4, 5, 6, and 7 are implemented:
+Milestones 0, 1, 2, 3, 4, 5, 6, 7, and 8 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -424,10 +463,10 @@ Milestones 0, 1, 2, 3, 4, 5, 6, and 7 are implemented:
 - a static Device Manager registry;
 - HAL and commands for GPIO, I²C, and SPI;
 - Wi-Fi station mode, IPv4 configuration, DNS, and ICMP ping;
-- a TCP remote shell sharing the UART command registry.
+- a TCP remote shell sharing the UART command registry;
+- shell scripting with variables, control flow, and `/boot/startup.rc`.
 
-Scripts, modules, external applications, and ELF loading are not implemented
-yet.
+Modules, external applications, and ELF loading are not implemented yet.
 
 ### Architecture
 
@@ -488,7 +527,7 @@ See [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) for the complete architecture, desi
 The system displays the following after boot:
 
 ```text
-MiniOS 0.70
+MiniOS 0.80
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -497,6 +536,7 @@ Copyright 2026 joaquim.org
 [ OK ] Filesystem
 [ OK ] Device Manager
 [ OK ] Shell
+[----] /boot/startup.rc not found
 
 Type 'help' for available commands.
 
@@ -529,6 +569,8 @@ Available commands:
 | `echo` | Writes text to a file |
 | `mkdir` | Creates a directory |
 | `rm` | Removes a file or empty directory |
+| `run` | Runs a script in a fresh variable context |
+| `source` | Runs a script in the current context |
 
 Configuration operations:
 
@@ -555,8 +597,14 @@ pwd
 rm note.txt
 ```
 
-`echo <text> <file>` and `>` replace the contents; `>>` appends. Text is limited
-to one argument until the parser supports quoted strings.
+`echo <text> <file>` and `>` replace the contents; `>>` appends. All arguments
+between `echo` and the operator/file are joined with spaces, allowing scripts
+to be created directly from the shell:
+
+```text
+echo set attempts 3 > /boot/startup.rc
+echo sleep 1000 >> /boot/startup.rc
+```
 
 Device Manager operations:
 
@@ -571,6 +619,36 @@ The registry holds up to eight devices without dynamic allocation and contains
 `uart0`, `gpio`, `i2c0`, `spi0`, and `wifi0`. When listing `/dev`, `ls` combines persistent
 LittleFS entries with virtual devices. The `/dev` namespace is reserved, so
 filesystem commands cannot create, modify, or remove devices.
+
+### Shell scripting
+
+`run <file>` executes a script with fresh variables. `source <file>` shares
+variables with its calling script. After shell initialization, the kernel tries
+to execute `/boot/startup.rc`; a missing file does not stop boot.
+
+```text
+# /boot/startup.rc
+set attempts 3
+repeat $attempts
+    wifi connect
+    if $? == 0
+        exit 0
+    else
+        sleep 1000
+    endif
+endrepeat
+exit 1
+```
+
+The language supports `#` comments, `set <name> <value>`, `$name`/`${name}`
+expansion, the last command status in `$?`, `sleep <ms>`,
+`if`/`else`/`endif`, `repeat`/`endrepeat`, and `exit [status]`. Conditions accept
+`if <value>`, `if <left> == <right>`, and `!=`.
+
+There is no dynamic allocation. Limits are 4095 bytes and 96 lines per file,
+eight variables, three nested scripts, eight nested blocks, 100 iterations per
+repeat block, 1000 instructions per context, and 60000 ms per `sleep`. Quoted
+values containing spaces are not supported yet.
 
 ### Hardware
 
@@ -786,7 +864,7 @@ SPDX identifier: `Apache-2.0`.
 | 5 | GPIO, I²C, and SPI | Complete |
 | 6 | Wi-Fi, ping, and network configuration | Complete |
 | 7 | Remote TCP shell | Complete |
-| 8 | Shell scripting and `/boot/startup.rc` | Future |
+| 8 | Shell scripting and `/boot/startup.rc` | Complete |
 | 9 | Compiled module management | Future |
 | 10 | Application and process management | Future |
 | 11 | ELF application loading | Future |

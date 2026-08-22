@@ -1083,7 +1083,7 @@ ERROR: application requires MiniOS API v2
 
 # 33. Scripts de arranque
 
-Adicionar futuramente:
+Implementado:
 
 ```text
 /boot/startup.rc
@@ -1092,14 +1092,15 @@ Adicionar futuramente:
 Exemplo:
 
 ```text
-echo "Starting system"
-
-wifi connect
-
-module load bmp280
-module load ssd1306
-
-run sysmon
+set attempts 3
+repeat $attempts
+    wifi connect
+    if $? == 0
+        exit 0
+    endif
+    sleep 1000
+endrepeat
+exit 1
 ```
 
 ---
@@ -1340,7 +1341,7 @@ redes de confiança.
 
 ## Milestone 8 — Shell Scripting and Init Scripts
 
-Implementar um motor de scripts limitado, incluindo:
+Implementado um motor de scripts limitado, incluindo:
 
 ```text
 run <file>
@@ -1348,8 +1349,15 @@ source <file>
 /boot/startup.rc
 ```
 
-Suportar inicialmente comentários, variáveis, `sleep`, condicionais simples,
-repetição com limites explícitos e `exit`, sem alocação dinâmica.
+São suportados comentários, variáveis (`set`, `$nome`, `${nome}` e `$?`),
+`sleep`, condicionais simples (`if`/`else`/`endif`), repetição limitada
+(`repeat`/`endrepeat`) e `exit`, sem alocação dinâmica. `run` cria um contexto
+de variáveis novo e `source` reutiliza o contexto atual. `/boot/startup.rc` é
+executado durante o boot quando existe; a sua ausência não é um erro fatal.
+
+Limites da primeira versão: 4095 bytes e 96 linhas por ficheiro, oito variáveis,
+três scripts e oito blocos aninhados, 100 repetições por bloco, 1000 instruções
+por contexto e 60000 ms por `sleep`.
 
 ---
 

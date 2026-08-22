@@ -57,7 +57,9 @@ static int register_builtin_commands(void)
         (minios_cmd_cat_register() != 0) ||
         (minios_cmd_echo_register() != 0) ||
         (minios_cmd_mkdir_register() != 0) ||
-        (minios_cmd_rm_register() != 0)) {
+        (minios_cmd_rm_register() != 0) ||
+        (minios_cmd_run_register() != 0) ||
+        (minios_cmd_source_register() != 0)) {
         return -1;
     }
     return 0;
@@ -139,7 +141,7 @@ int minios_shell_printf(const char *format, ...)
     return minios_console_write(command_console, buffer, (size_t)length);
 }
 
-static void execute_line(minios_console_t *console, char *line)
+int minios_shell_execute_line_locked(char *line)
 {
     char *argv[MINIOS_SHELL_MAX_ARGS];
     const minios_command_t *command;
@@ -147,26 +149,46 @@ static void execute_line(minios_console_t *console, char *line)
 
     argc = minios_shell_parse(line, argv, MINIOS_SHELL_MAX_ARGS);
     if (argc == -2) {
-        minios_console_write_text(console, "Error: too many arguments\r\n");
-        return;
+        minios_shell_write("Error: too many arguments\r\n");
+        return -1;
     }
     if (argc <= 0) {
-        return;
+        return (argc == 0) ? 0 : -1;
     }
 
+    command = find_command(argv[0]);
+    if (command == NULL) {
+        minios_shell_printf("Unknown command: %s\r\n", argv[0]);
+        return -1;
+    }
+    return command->handler(argc, argv);
+}
+
+static void execute_line(minios_console_t *console, char *line)
+{
     if (xSemaphoreTake(command_mutex, portMAX_DELAY) != pdTRUE) {
         minios_console_write_text(console, "Error: shell unavailable\r\n");
         return;
     }
     command_console = console;
-    command = find_command(argv[0]);
-    if (command == NULL) {
-        minios_shell_printf("Unknown command: %s\r\n", argv[0]);
-    } else {
-        (void)command->handler(argc, argv);
-    }
+    (void)minios_shell_execute_line_locked(line);
     command_console = uart_console;
     xSemaphoreGive(command_mutex);
+}
+
+int minios_shell_run_startup(void)
+{
+    int result;
+
+    if ((command_mutex == NULL) ||
+        (xSemaphoreTake(command_mutex, portMAX_DELAY) != pdTRUE)) {
+        return MINIOS_SCRIPT_ERROR;
+    }
+    command_console = uart_console;
+    result = minios_script_execute("/boot/startup.rc", -1);
+    command_console = uart_console;
+    xSemaphoreGive(command_mutex);
+    return result;
 }
 
 static void write_prompt(minios_console_t *console)

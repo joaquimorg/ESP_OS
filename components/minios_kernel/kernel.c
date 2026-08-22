@@ -86,6 +86,17 @@ void minios_kernel_start(void)
     }
 
     minios_console_write_text(&console, "[ OK ] Shell\r\n\r\n");
+    {
+        int startup_result = minios_shell_run_startup();
+
+        if (startup_result == MINIOS_SCRIPT_OK) {
+            minios_console_write_text(&console, "[ OK ] /boot/startup.rc\r\n\r\n");
+        } else if (startup_result == MINIOS_SCRIPT_NOT_FOUND) {
+            minios_console_write_text(&console, "[----] /boot/startup.rc not found\r\n\r\n");
+        } else {
+            minios_console_write_text(&console, "[WARN] /boot/startup.rc failed\r\n\r\n");
+        }
+    }
 #if CONFIG_MINIOS_ENABLE_REMOTE_CONSOLE
     if (minios_remote_console_start() == MINIOS_REMOTE_OK) {
         minios_console_write_text(&console, "[ OK ] Remote console TCP port "

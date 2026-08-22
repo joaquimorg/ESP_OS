@@ -3,6 +3,8 @@
 #include "minios_shell.h"
 
 int minios_shell_parse(char *line, char **argv, int max_args);
+int minios_shell_execute_line_locked(char *line);
+int minios_script_execute(const char *path, int source);
 
 int minios_cmd_clear_register(void);
 int minios_cmd_cat_register(void);
@@ -22,6 +24,8 @@ int minios_cmd_pwd_register(void);
 int minios_cmd_ping_register(void);
 int minios_cmd_reboot_register(void);
 int minios_cmd_rm_register(void);
+int minios_cmd_run_register(void);
+int minios_cmd_source_register(void);
 int minios_cmd_spi_register(void);
 int minios_cmd_uptime_register(void);
 int minios_cmd_version_register(void);
