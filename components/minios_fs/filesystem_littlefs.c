@@ -418,6 +418,40 @@ int os_fs_write(const char *path, const char *data, int append)
     return result;
 }
 
+int minios_fs_replace(const char *path, const char *data, size_t length)
+{
+    char logical[OS_FS_PATH_MAX];
+    char physical[sizeof(FS_BASE_PATH) + OS_FS_PATH_MAX];
+    FILE *file;
+    int result;
+
+    if (!fs_initialized || ((data == NULL) && (length != 0U))) {
+        return OS_FS_INVALID_ARGUMENT;
+    }
+    result = physical_path(path, physical, sizeof(physical), logical);
+    if (result != OS_FS_OK) {
+        return result;
+    }
+    if (is_device_path(logical) || is_device_directory(logical)) {
+        return OS_FS_IS_DEVICE;
+    }
+    if (is_module_path(logical) || is_module_directory(logical)) {
+        return OS_FS_READ_ONLY;
+    }
+    file = fopen(physical, "wb");
+    if (file == NULL) {
+        return result_from_errno(errno);
+    }
+    result = ((length == 0U) ||
+              (fwrite(data, 1U, length, file) == length))
+                 ? OS_FS_OK
+                 : OS_FS_ERROR;
+    if (fclose(file) != 0) {
+        result = OS_FS_ERROR;
+    }
+    return result;
+}
+
 int os_fs_mkdir(const char *path)
 {
     char logical[OS_FS_PATH_MAX];

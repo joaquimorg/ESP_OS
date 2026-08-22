@@ -139,10 +139,14 @@ Comandos disponíveis:
 | `pwd` | Mostra o diretório atual |
 | `cat` | Mostra o conteúdo de um ficheiro |
 | `echo` | Escreve texto num ficheiro |
+| `edit` | Edita interativamente um ficheiro de texto ou script |
 | `mkdir` | Cria um diretório |
 | `rm` | Remove um ficheiro ou diretório vazio |
 | `run` | Executa uma aplicação compilada ou um script |
 | `source` | Executa um script no contexto atual |
+
+O prompt reconhece sequências ANSI/VT100 para `←`, `→`, `Home`, `End` e
+`Delete`, permitindo mover o cursor e alterar texto no meio de um comando.
 
 Operações de configuração:
 
@@ -177,6 +181,19 @@ permite criar scripts diretamente na shell:
 echo set attempts 3 > /boot/startup.rc
 echo sleep 1000 >> /boot/startup.rc
 ```
+
+Para editar um script interativamente:
+
+```text
+edit /boot/startup.rc
+```
+
+O editor utiliza as setas, `Home`, `End`, `Delete`, Backspace e Enter.
+`Ctrl-S` guarda e `Ctrl-Q` sai; se existirem alterações por guardar, é
+necessário pressionar `Ctrl-Q` uma segunda vez para as descartar. Para manter o
+consumo de memória previsível, aceita ficheiros de texto ASCII com até 64
+linhas e 72 caracteres por linha. O editor funciona tanto na consola local
+como na shell TCP, desde que o cliente suporte sequências ANSI/VT100.
 
 Operações do Device Manager:
 
@@ -401,7 +418,7 @@ idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONF
 Com `CONFIG_MINIOS_ENABLE_NETWORK` desativada, `wifi`, `ifconfig`, `ping` e
 `/dev/wifi0` não são incluídos. O arranque apresenta `Network disabled` e as
 dependências Wi-Fi não entram no firmware final. No build ESP32-C3 medido, o
-binário desceu de cerca de 928 KiB para 326 KiB, poupando cerca de 601 KiB.
+binário desceu de cerca de 933 KiB para 331 KiB, poupando cerca de 602 KiB.
 
 ## Consola remota TCP
 
@@ -439,7 +456,7 @@ Limites atuais do shell:
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  28
+#define MINIOS_SHELL_MAX_COMMANDS  29
 ```
 
 O parser suporta apenas comandos e argumentos separados por espaços. Pipes, redirecionamento, wildcards e expansão de variáveis ainda não são suportados.
@@ -468,7 +485,7 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 928 KiB com a
+O build atual gera `build/minios.bin` e ocupa aproximadamente 933 KiB com a
 configuração ESP-IDF/Wi-Fi atual, deixando 9% livre na partição de aplicação.
 
 ## Adicionar um comando
@@ -677,10 +694,14 @@ Available commands:
 | `pwd` | Prints the working directory |
 | `cat` | Displays a file |
 | `echo` | Writes text to a file |
+| `edit` | Interactively edits a text or script file |
 | `mkdir` | Creates a directory |
 | `rm` | Removes a file or empty directory |
 | `run` | Runs a compiled application or a script |
 | `source` | Runs a script in the current context |
+
+The prompt recognizes ANSI/VT100 sequences for `←`, `→`, `Home`, `End`, and
+`Delete`, allowing the cursor to move and text to be changed inside a command.
 
 Configuration operations:
 
@@ -715,6 +736,19 @@ to be created directly from the shell:
 echo set attempts 3 > /boot/startup.rc
 echo sleep 1000 >> /boot/startup.rc
 ```
+
+To edit a script interactively:
+
+```text
+edit /boot/startup.rc
+```
+
+The editor supports the arrow keys, `Home`, `End`, `Delete`, Backspace, and
+Enter. `Ctrl-S` saves and `Ctrl-Q` quits; when unsaved changes exist, press
+`Ctrl-Q` a second time to discard them. To keep memory usage predictable, it
+accepts ASCII text files with up to 64 lines and 72 characters per line. The
+editor works on both the local console and TCP shell when the client supports
+ANSI/VT100 sequences.
 
 Device Manager operations:
 
@@ -937,7 +971,7 @@ idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONF
 When `CONFIG_MINIOS_ENABLE_NETWORK` is disabled, `wifi`, `ifconfig`, `ping`,
 and `/dev/wifi0` are omitted. Boot reports `Network disabled` and the Wi-Fi
 dependencies are not linked into the final firmware. In the measured ESP32-C3
-build, the binary dropped from about 928 KiB to 326 KiB, saving about 601 KiB.
+build, the binary dropped from about 933 KiB to 331 KiB, saving about 602 KiB.
 
 ### TCP remote console
 
@@ -974,7 +1008,7 @@ Current shell limits:
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  28
+#define MINIOS_SHELL_MAX_COMMANDS  29
 ```
 
 The parser currently supports commands and space-separated arguments only. Pipes, redirection, wildcards, and variable expansion are not supported yet.
@@ -1003,7 +1037,7 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 928 KiB
+The current build generates `build/minios.bin` and uses approximately 933 KiB
 with the current ESP-IDF/Wi-Fi configuration, leaving 9% of the application
 partition free.
 

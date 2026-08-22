@@ -6,3 +6,5 @@
  * exposing LittleFS or ESP-IDF types.
  */
 #include "minios.h"
+
+int minios_fs_replace(const char *path, const char *data, size_t length);

@@ -4,6 +4,7 @@
 
 int minios_shell_parse(char *line, char **argv, int max_args);
 int minios_shell_execute_line_locked(char *line);
+int minios_shell_read_bytes(char *data, size_t length);
 int minios_script_execute(const char *path, int source);
 
 int minios_cmd_clear_register(void);
@@ -12,6 +13,7 @@ int minios_cmd_cat_register(void);
 int minios_cmd_cd_register(void);
 int minios_cmd_config_register(void);
 int minios_cmd_device_register(void);
+int minios_cmd_edit_register(void);
 int minios_cmd_echo_register(void);
 int minios_cmd_help_register(void);
 int minios_cmd_info_register(void);

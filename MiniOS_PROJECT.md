@@ -1426,6 +1426,24 @@ motor de scripts do Milestone 8. Código externo e ELF permanecem no Milestone 1
 
 ---
 
+## Extensão da shell — terminal ANSI e editor
+
+O input interativo reconhece sequências ANSI/VT100 para as setas horizontais,
+`Home`, `End` e `Delete`, permitindo editar a linha de comandos sem depender da
+UART. O mesmo descodificador é utilizado pela consola local e pela shell TCP.
+
+O comando `edit <ficheiro>` fornece um editor pequeno para texto e scripts:
+
+```text
+edit /boot/startup.rc
+```
+
+As setas movimentam o cursor, `Ctrl-S` guarda e `Ctrl-Q` sai. O editor usa
+buffers estáticos, aceita até 64 linhas de 72 caracteres ASCII e respeita os
+namespaces protegidos do filesystem, incluindo `/dev` e `/modules`.
+
+---
+
 ## Milestone 11 — ELF
 
 Carregar aplicações ELF externas.

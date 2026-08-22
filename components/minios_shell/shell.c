@@ -7,6 +7,7 @@
 #include "minios.h"
 #include "minios_fs.h"
 #include "shell_internal.h"
+#include "shell_terminal.h"
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -60,6 +61,7 @@ static int register_builtin_commands(void)
         (minios_cmd_pwd_register() != 0) ||
         (minios_cmd_cat_register() != 0) ||
         (minios_cmd_echo_register() != 0) ||
+        (minios_cmd_edit_register() != 0) ||
         (minios_cmd_mkdir_register() != 0) ||
         (minios_cmd_rm_register() != 0) ||
         (minios_cmd_run_register() != 0) ||
@@ -120,6 +122,11 @@ int minios_shell_write(const char *text)
 int minios_shell_write_bytes(const char *data, size_t length)
 {
     return minios_console_write(command_console, data, length);
+}
+
+int minios_shell_read_bytes(char *data, size_t length)
+{
+    return minios_console_read(command_console, data, length);
 }
 
 int minios_shell_printf(const char *format, ...)
@@ -225,8 +232,10 @@ void minios_shell_run_console(minios_console_t *console)
 {
     char line[MINIOS_SHELL_MAX_LINE];
     size_t length = 0U;
+    size_t cursor = 0U;
     int discard_line = 0;
     int ignore_lf = 0;
+    minios_terminal_decoder_t decoder;
 
     if (console == NULL) {
         return;
@@ -234,9 +243,11 @@ void minios_shell_run_console(minios_console_t *console)
     minios_console_write_text(
         console, "Type 'help' for available commands.\r\n\r\n");
     write_prompt(console);
+    minios_terminal_decoder_reset(&decoder);
 
     for (;;) {
         char character;
+        minios_key_t key;
         int received = minios_console_read(console, &character, 1U);
 
         if (received < 0) {
@@ -246,6 +257,70 @@ void minios_shell_run_console(minios_console_t *console)
             os_sleep(10U);
             continue;
         }
+
+        key = minios_terminal_decode(&decoder, (unsigned char)character);
+        if (key.type == MINIOS_KEY_NONE) {
+            continue;
+        }
+        if (key.type == MINIOS_KEY_LEFT) {
+            if (!discard_line && (cursor > 0U)) {
+                --cursor;
+                minios_console_write_text(console, "\x1b[D");
+            }
+            continue;
+        }
+        if (key.type == MINIOS_KEY_RIGHT) {
+            if (!discard_line && (cursor < length)) {
+                ++cursor;
+                minios_console_write_text(console, "\x1b[C");
+            }
+            continue;
+        }
+        if (key.type == MINIOS_KEY_HOME) {
+            if (!discard_line && (cursor > 0U)) {
+                char sequence[20];
+                int count = snprintf(sequence, sizeof(sequence), "\x1b[%uD",
+                                     (unsigned int)cursor);
+
+                minios_console_write(console, sequence, (size_t)count);
+                cursor = 0U;
+            }
+            continue;
+        }
+        if (key.type == MINIOS_KEY_END) {
+            if (!discard_line && (cursor < length)) {
+                char sequence[20];
+                size_t distance = length - cursor;
+                int count = snprintf(sequence, sizeof(sequence), "\x1b[%uC",
+                                     (unsigned int)distance);
+
+                minios_console_write(console, sequence, (size_t)count);
+                cursor = length;
+            }
+            continue;
+        }
+        if (key.type == MINIOS_KEY_DELETE) {
+            if (!discard_line && (cursor < length)) {
+                char sequence[20];
+                size_t tail;
+                int count;
+
+                memmove(line + cursor, line + cursor + 1U,
+                        length - cursor - 1U);
+                --length;
+                tail = length - cursor;
+                minios_console_write(console, line + cursor, tail);
+                minios_console_write_text(console, " ");
+                count = snprintf(sequence, sizeof(sequence), "\x1b[%uD",
+                                 (unsigned int)(tail + 1U));
+                minios_console_write(console, sequence, (size_t)count);
+            }
+            continue;
+        }
+        if (key.type != MINIOS_KEY_CHARACTER) {
+            continue;
+        }
+        character = (char)key.character;
 
         if ((character == '\n') && ignore_lf) {
             ignore_lf = 0;
@@ -264,15 +339,29 @@ void minios_shell_run_console(minios_console_t *console)
                 execute_line(console, line);
             }
             length = 0U;
+            cursor = 0U;
             discard_line = 0;
             write_prompt(console);
             continue;
         }
 
         if ((character == '\b') || (character == 0x7f)) {
-            if (!discard_line && (length > 0U)) {
+            if (!discard_line && (cursor > 0U)) {
+                char sequence[20];
+                size_t tail;
+                int count;
+
+                --cursor;
+                memmove(line + cursor, line + cursor + 1U,
+                        length - cursor - 1U);
                 --length;
-                minios_console_write_text(console, "\b \b");
+                tail = length - cursor;
+                minios_console_write_text(console, "\b");
+                minios_console_write(console, line + cursor, tail);
+                minios_console_write_text(console, " ");
+                count = snprintf(sequence, sizeof(sequence), "\x1b[%uD",
+                                 (unsigned int)(tail + 1U));
+                minios_console_write(console, sequence, (size_t)count);
             }
             continue;
         }
@@ -286,9 +375,19 @@ void minios_shell_run_console(minios_console_t *console)
             continue;
         }
 
-        line[length] = character;
+        memmove(line + cursor + 1U, line + cursor, length - cursor);
+        line[cursor] = character;
         ++length;
-        (void)minios_console_write(console, &character, 1U);
+        ++cursor;
+        (void)minios_console_write(console, line + cursor - 1U,
+                                   length - cursor + 1U);
+        if (cursor < length) {
+            char sequence[20];
+            int count = snprintf(sequence, sizeof(sequence), "\x1b[%uD",
+                                 (unsigned int)(length - cursor));
+
+            minios_console_write(console, sequence, (size_t)count);
+        }
     }
 }
 
