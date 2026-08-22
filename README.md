@@ -4,11 +4,11 @@
 
 MiniOS é um pequeno sistema operativo/runtime modular para microcontroladores ESP32, desenvolvido em C sobre ESP-IDF e FreeRTOS. O projeto inspira-se em conceitos do CP/M e Unix, adaptados às limitações e necessidades de um microcontrolador.
 
-A versão atual é a **MiniOS 0.90**, direcionada inicialmente ao **ESP32-C3**.
+A versão atual é a **MiniOS 1.00**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8 e 9 estão implementadas:
+As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 e 10 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -25,7 +25,9 @@ As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8 e 9 estão implementadas:
 - Wi-Fi station, configuração IPv4, DNS e ping ICMP;
 - shell remota TCP com a mesma command registry da consola UART;
 - shell scripting com variáveis, controlo de fluxo e `/boot/startup.rc`;
-- gestão de módulos compilados e módulo OLED SSD1315 128×64 sobre I²C.
+- gestão de módulos compilados e módulo OLED SSD1315 128×64 sobre I²C;
+- aplicações compiladas, processos limitados e comandos `app`, `run`, `ps` e
+  `kill`.
 
 Ainda não estão implementadas aplicações externas ou carregamento ELF.
 
@@ -70,6 +72,7 @@ ESP_OS/
 │   └── main.c
 └── components/
     ├── minios_api/
+    ├── minios_app/
     ├── minios_config/
     ├── minios_console/
     ├── minios_device/
@@ -89,7 +92,7 @@ O documento [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) contém a arquitetura compl
 Depois do arranque, o sistema apresenta:
 
 ```text
-MiniOS 0.90
+MiniOS 1.00
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -99,6 +102,7 @@ Copyright 2026 joaquim.org
 [ OK ] Filesystem
 [ OK ] Device Manager
 [ OK ] Modules
+[ OK ] Applications
 [ OK ] Shell
 [----] /boot/startup.rc not found
 
@@ -121,6 +125,9 @@ Comandos disponíveis:
 | `config` | Gere configuração persistente em NVS |
 | `device` | Lista e descreve os dispositivos registados |
 | `module` | Lista, carrega e descarrega módulos compilados |
+| `app` | Lista e descreve aplicações compiladas |
+| `ps` | Lista os processos de aplicações |
+| `kill` | Solicita a paragem cooperativa de um processo |
 | `gpio` | Configura, lê e escreve pinos GPIO |
 | `i2c` | Configura e pesquisa o bus I²C |
 | `spi` | Configura e transfere bytes por SPI |
@@ -134,7 +141,7 @@ Comandos disponíveis:
 | `echo` | Escreve texto num ficheiro |
 | `mkdir` | Cria um diretório |
 | `rm` | Remove um ficheiro ou diretório vazio |
-| `run` | Executa um script num contexto de variáveis novo |
+| `run` | Executa uma aplicação compilada ou um script |
 | `source` | Executa um script no contexto atual |
 
 Operações de configuração:
@@ -177,7 +184,7 @@ Operações do Device Manager:
 device list
 device info uart0
 device info /dev/gpio
-device write display0 MiniOS 0.90
+device write display0 MiniOS 1.00
 device control display0 clear
 ls /dev
 ```
@@ -230,6 +237,49 @@ em píxeis; para manter um carácter 5×7 totalmente visível, aceita `x=0..122`
 `device write display0 --at <x> <y> <texto>`. A fonte compacta converte
 minúsculas em maiúsculas e suporta `A-Z`, `0-9`, espaço e pontuação básica.
 Enquanto o módulo estiver carregado, o bus I²C não pode ser reconfigurado.
+
+## Aplicações e processos
+
+O Milestone 10 adiciona aplicações compiladas no firmware e registadas através
+de `os_app_register()`. Cada aplicação recebe apenas `argc`/`argv` e usa
+`minios.h`; tipos do ESP-IDF e do FreeRTOS não fazem parte da API pública.
+
+Estão incluídas três aplicações:
+
+- `hello`: mostra uma saudação e os argumentos recebidos;
+- `counter`: processo demorado para testar `ps` e `kill`;
+- `welcome`: mostra uma mensagem de boas-vindas e o IP atual em `/dev/display0`.
+
+Exemplo de gestão de processos:
+
+```text
+app list
+app info counter
+run hello MiniOS
+run counter 30 1000
+ps
+kill 2
+ps
+```
+
+O runtime tem quatro workers e stacks estáticos de 3072 bytes. Pode executar no
+máximo quatro processos simultâneos, com oito argumentos de até 31 caracteres
+por processo. `kill` é cooperativo: muda o processo para `stopping`, e a
+aplicação termina quando observa `os_app_should_stop()`. Isto evita destruir uma
+task enquanto mantém recursos. Processos terminados aparecem como `exited` até
+o respetivo slot ser reutilizado.
+
+Para mostrar a saudação e o IP no OLED:
+
+```text
+i2c init 8 9
+module load ssd1315
+wifi connect
+run welcome
+```
+
+`run /caminho/script.rc` continua a executar scripts do Milestone 8; nomes que
+correspondam a aplicações registadas iniciam uma aplicação em background.
 
 ## Shell scripting
 
@@ -351,7 +401,7 @@ idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONF
 Com `CONFIG_MINIOS_ENABLE_NETWORK` desativada, `wifi`, `ifconfig`, `ping` e
 `/dev/wifi0` não são incluídos. O arranque apresenta `Network disabled` e as
 dependências Wi-Fi não entram no firmware final. No build ESP32-C3 medido, o
-binário desceu de cerca de 895 KiB para 295 KiB, poupando cerca de 599 KiB.
+binário desceu de cerca de 928 KiB para 326 KiB, poupando cerca de 601 KiB.
 
 ## Consola remota TCP
 
@@ -389,7 +439,7 @@ Limites atuais do shell:
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  24
+#define MINIOS_SHELL_MAX_COMMANDS  28
 ```
 
 O parser suporta apenas comandos e argumentos separados por espaços. Pipes, redirecionamento, wildcards e expansão de variáveis ainda não são suportados.
@@ -418,8 +468,8 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 895 KiB com a
-configuração ESP-IDF/Wi-Fi atual.
+O build atual gera `build/minios.bin` e ocupa aproximadamente 928 KiB com a
+configuração ESP-IDF/Wi-Fi atual, deixando 9% livre na partição de aplicação.
 
 ## Adicionar um comando
 
@@ -480,7 +530,7 @@ Identificador SPDX: `Apache-2.0`.
 | 7 | Shell remota por TCP | Concluída |
 | 8 | Shell scripting e `/boot/startup.rc` | Concluída |
 | 9 | Gestão de módulos compilados | Concluída |
-| 10 | Gestão de aplicações e processos | Futura |
+| 10 | Gestão de aplicações e processos | Concluída |
 | 11 | Carregamento de aplicações ELF | Futura |
 | 12 | Package manager e instalação via rede | Futura |
 
@@ -494,11 +544,11 @@ O desenvolvimento deve continuar milestone a milestone, preservando o desacoplam
 
 MiniOS is a small modular operating system/runtime for ESP32 microcontrollers, written in C on top of ESP-IDF and FreeRTOS. It takes inspiration from CP/M and Unix concepts while adapting them to the constraints and requirements of a microcontroller.
 
-The current release is **MiniOS 0.90**, initially targeting the **ESP32-C3**.
+The current release is **MiniOS 1.00**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 are implemented:
+Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -515,7 +565,8 @@ Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 are implemented:
 - Wi-Fi station mode, IPv4 configuration, DNS, and ICMP ping;
 - a TCP remote shell sharing the UART command registry;
 - shell scripting with variables, control flow, and `/boot/startup.rc`;
-- compiled module management and an I²C SSD1315 128×64 OLED module.
+- compiled module management and an I²C SSD1315 128×64 OLED module;
+- compiled applications, bounded processes, and `app`, `run`, `ps`, and `kill`.
 
 External applications and ELF loading are not implemented yet.
 
@@ -560,6 +611,7 @@ ESP_OS/
 │   └── main.c
 └── components/
     ├── minios_api/
+    ├── minios_app/
     ├── minios_config/
     ├── minios_console/
     ├── minios_device/
@@ -579,7 +631,7 @@ See [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) for the complete architecture, desi
 The system displays the following after boot:
 
 ```text
-MiniOS 0.90
+MiniOS 1.00
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -588,6 +640,7 @@ Copyright 2026 joaquim.org
 [ OK ] Filesystem
 [ OK ] Device Manager
 [ OK ] Modules
+[ OK ] Applications
 [ OK ] Shell
 [----] /boot/startup.rc not found
 
@@ -610,6 +663,9 @@ Available commands:
 | `config` | Manages persistent configuration in NVS |
 | `device` | Lists and describes registered devices |
 | `module` | Lists, loads, and unloads compiled modules |
+| `app` | Lists and describes compiled applications |
+| `ps` | Lists application processes |
+| `kill` | Cooperatively requests a process to stop |
 | `gpio` | Configures, reads, and writes GPIO pins |
 | `i2c` | Configures and scans the I²C bus |
 | `spi` | Configures and transfers bytes over SPI |
@@ -623,7 +679,7 @@ Available commands:
 | `echo` | Writes text to a file |
 | `mkdir` | Creates a directory |
 | `rm` | Removes a file or empty directory |
-| `run` | Runs a script in a fresh variable context |
+| `run` | Runs a compiled application or a script |
 | `source` | Runs a script in the current context |
 
 Configuration operations:
@@ -666,7 +722,7 @@ Device Manager operations:
 device list
 device info uart0
 device info /dev/gpio
-device write display0 MiniOS 0.90
+device write display0 MiniOS 1.00
 device control display0 clear
 ls /dev
 ```
@@ -719,6 +775,49 @@ and `y=0..57`. Positioning and writing can also be combined with
 `device write display0 --at <x> <y> <text>`. Its compact font converts lowercase
 to uppercase and supports `A-Z`, `0-9`, spaces, and basic punctuation. The I²C
 bus cannot be reconfigured while the module is loaded.
+
+### Applications and processes
+
+Milestone 10 adds applications compiled into the firmware and registered through
+`os_app_register()`. Each application receives only `argc`/`argv` and uses
+`minios.h`; ESP-IDF and FreeRTOS types are not exposed through the public API.
+
+Three applications are included:
+
+- `hello`: prints a greeting and its arguments;
+- `counter`: a long-running process for testing `ps` and `kill`;
+- `welcome`: shows a welcome message and the current IP on `/dev/display0`.
+
+Process management example:
+
+```text
+app list
+app info counter
+run hello MiniOS
+run counter 30 1000
+ps
+kill 2
+ps
+```
+
+The runtime uses four workers with static 3072-byte stacks. It supports at most
+four concurrent processes, each with eight arguments of up to 31 characters.
+`kill` is cooperative: it changes the process state to `stopping`, and the
+application exits after observing `os_app_should_stop()`. This avoids destroying
+a task while it owns resources. Completed processes remain visible as `exited`
+until their slot is reused.
+
+To show the greeting and IP address on the OLED:
+
+```text
+i2c init 8 9
+module load ssd1315
+wifi connect
+run welcome
+```
+
+`run /path/script.rc` remains compatible with Milestone 8 scripts; a name that
+matches a registered application starts that application in the background.
 
 ### Shell scripting
 
@@ -838,7 +937,7 @@ idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONF
 When `CONFIG_MINIOS_ENABLE_NETWORK` is disabled, `wifi`, `ifconfig`, `ping`,
 and `/dev/wifi0` are omitted. Boot reports `Network disabled` and the Wi-Fi
 dependencies are not linked into the final firmware. In the measured ESP32-C3
-build, the binary dropped from about 895 KiB to 295 KiB, saving about 599 KiB.
+build, the binary dropped from about 928 KiB to 326 KiB, saving about 601 KiB.
 
 ### TCP remote console
 
@@ -875,7 +974,7 @@ Current shell limits:
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  24
+#define MINIOS_SHELL_MAX_COMMANDS  28
 ```
 
 The parser currently supports commands and space-separated arguments only. Pipes, redirection, wildcards, and variable expansion are not supported yet.
@@ -904,8 +1003,9 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 895 KiB
-with the current ESP-IDF/Wi-Fi configuration.
+The current build generates `build/minios.bin` and uses approximately 928 KiB
+with the current ESP-IDF/Wi-Fi configuration, leaving 9% of the application
+partition free.
 
 ### Adding a command
 
@@ -966,7 +1066,7 @@ SPDX identifier: `Apache-2.0`.
 | 7 | Remote TCP shell | Complete |
 | 8 | Shell scripting and `/boot/startup.rc` | Complete |
 | 9 | Compiled module management | Complete |
-| 10 | Application and process management | Future |
+| 10 | Application and process management | Complete |
 | 11 | ELF application loading | Future |
 | 12 | Package manager and network installation | Future |
 

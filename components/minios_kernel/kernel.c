@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "minios.h"
+#include "minios_app.h"
 #include "minios_config.h"
 #include "minios_console.h"
 #include "minios_device.h"
@@ -86,6 +87,12 @@ void minios_kernel_start(void)
         return;
     }
     minios_console_write_text(&console, "[ OK ] Modules\r\n");
+
+    if (os_app_init() != OS_APP_OK) {
+        minios_console_write_text(&console, "[FAIL] Applications\r\n");
+        return;
+    }
+    minios_console_write_text(&console, "[ OK ] Applications\r\n");
 
     if (minios_shell_init(&console) != 0) {
         minios_console_write_text(&console, "[FAIL] Shell\r\n");

@@ -5,6 +5,7 @@ set(MINIOS_SHELL_SOURCES
     "commands/cmd_fs_common.c"
     "commands/cmd_hw_common.c"
     "commands/cmd_cat.c"
+    "commands/cmd_app.c"
     "commands/cmd_cd.c"
     "commands/cmd_clear.c"
     "commands/cmd_config.c"
@@ -39,5 +40,5 @@ idf_component_register(
     SRCS ${MINIOS_SHELL_SOURCES}
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
-    REQUIRES minios_console minios_api minios_config minios_device minios_fs minios_hal minios_module minios_net
+    REQUIRES minios_console minios_api minios_app minios_config minios_device minios_fs minios_hal minios_module minios_net
 )

@@ -3,9 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MINIOS_API_VERSION 2
+#define MINIOS_API_VERSION 3
 #define MINIOS_NAME "MiniOS"
-#define MINIOS_VERSION "0.90"
+#define MINIOS_VERSION "1.00"
 #define MINIOS_COPYRIGHT "Copyright 2026 joaquim.org"
 
 #define OS_CONFIG_KEY_MAX_LENGTH 63
@@ -44,6 +44,21 @@
 #define OS_DEVICE_REGISTRY_FULL -5
 #define OS_DEVICE_NOT_SUPPORTED -6
 #define OS_DEVICE_BUSY -7
+
+#define OS_APP_MAX 8
+#define OS_APP_NAME_MAX 15
+#define OS_APP_MAX_PROCESSES 4
+#define OS_APP_MAX_ARGS 8
+#define OS_APP_ARG_MAX 31
+
+#define OS_APP_OK 0
+#define OS_APP_ERROR -1
+#define OS_APP_INVALID_ARGUMENT -2
+#define OS_APP_NOT_FOUND -3
+#define OS_APP_ALREADY_EXISTS -4
+#define OS_APP_REGISTRY_FULL -5
+#define OS_APP_PROCESS_LIMIT -6
+#define OS_APP_NOT_RUNNING -7
 
 #define OS_DEVICE_CAP_READ (1U << 0)
 #define OS_DEVICE_CAP_WRITE (1U << 1)
@@ -93,6 +108,29 @@ typedef struct minios_device {
     os_device_control_handler_t control;
     void *context;
 } minios_device_t;
+
+typedef int (*os_app_main_t)(int argc, char **argv);
+
+typedef struct {
+    const char *name;
+    const char *description;
+    os_app_main_t main;
+} os_app_descriptor_t;
+
+typedef enum {
+    OS_PROCESS_STARTING = 0,
+    OS_PROCESS_RUNNING,
+    OS_PROCESS_STOPPING,
+    OS_PROCESS_EXITED,
+} os_process_state_t;
+
+typedef struct {
+    uint16_t pid;
+    char name[OS_APP_NAME_MAX + 1U];
+    os_process_state_t state;
+    int exit_code;
+    uint32_t elapsed_ms;
+} os_process_info_t;
 
 typedef struct {
     size_t total;
@@ -194,6 +232,17 @@ const minios_device_t *os_device_find(const char *name);
 int os_device_write(const char *name, const void *data, size_t length);
 int os_device_control(const char *name, const char *operation,
                       const char *value);
+
+int os_app_init(void);
+int os_app_register(const os_app_descriptor_t *descriptor);
+size_t os_app_count(void);
+const os_app_descriptor_t *os_app_at(size_t index);
+const os_app_descriptor_t *os_app_find(const char *name);
+int os_app_run(const char *name, int argc, char **argv, uint16_t *pid);
+int os_app_kill(uint16_t pid);
+int os_app_should_stop(void);
+size_t os_process_count(void);
+int os_process_at(size_t index, os_process_info_t *info);
 
 int os_net_init(void);
 int os_net_scan(os_net_scan_callback_t callback, void *context, size_t *found);

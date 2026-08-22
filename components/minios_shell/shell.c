@@ -42,6 +42,9 @@ static int register_builtin_commands(void)
         (minios_cmd_uptime_register() != 0) ||
         (minios_cmd_reboot_register() != 0) ||
         (minios_cmd_clear_register() != 0) ||
+        (minios_cmd_app_register() != 0) ||
+        (minios_cmd_ps_register() != 0) ||
+        (minios_cmd_kill_register() != 0) ||
         (minios_cmd_device_register() != 0) ||
         (minios_cmd_module_register() != 0) ||
 #if CONFIG_MINIOS_ENABLE_NETWORK

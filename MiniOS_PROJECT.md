@@ -365,7 +365,7 @@ Inicialmente:
 #include <stdint.h>
 #include <stddef.h>
 
-#define MINIOS_API_VERSION 1
+#define MINIOS_API_VERSION 3
 
 void os_print(const char *text);
 
@@ -553,7 +553,7 @@ Uptime: 00:14:27
 
 ```text
 MiniOS 0.01
-API version 1
+API version 3
 ```
 
 ## reboot
@@ -1061,7 +1061,7 @@ A aplicação ELF deverá aceder ao sistema através da API MiniOS, nunca direta
 Definir desde cedo:
 
 ```c
-#define MINIOS_API_VERSION 1
+#define MINIOS_API_VERSION 3
 ```
 
 Aplicações futuras deverão declarar a versão mínima da API exigida.
@@ -1391,7 +1391,7 @@ píxel e escrita direta com `device write display0 --at <x> <y> <texto>`.
 
 ## Milestone 10 — Applications
 
-Implementar:
+Implementado:
 
 ```text
 app list
@@ -1401,6 +1401,28 @@ ps
 ```
 
 Aplicações compiladas no firmware.
+
+O Application Manager mantém um registry estático de até oito aplicações e
+quatro workers FreeRTOS permanentes com stacks estáticos de 3072 bytes. Cada
+execução recebe um PID, argumentos copiados para buffers limitados e um estado
+`starting`, `running`, `stopping` ou `exited`. As aplicações terminadas continuam
+visíveis em `ps` até o slot ser reutilizado.
+
+`kill` é deliberadamente cooperativo: assinala o pedido de paragem e a aplicação
+consulta `os_app_should_stop()`. Não são expostos handles ou tipos FreeRTOS na
+API pública, e uma aplicação compilada depende apenas de `minios.h`.
+
+Aplicações iniciais:
+
+```text
+hello    saudação e argumentos
+counter  processo longo para testar ps/kill
+welcome  saudação e endereço IP em /dev/display0
+```
+
+O comando `run` mantém compatibilidade com scripts: nomes presentes no registry
+iniciam aplicações em background; os restantes caminhos são executados pelo
+motor de scripts do Milestone 8. Código externo e ELF permanecem no Milestone 11.
 
 ---
 
