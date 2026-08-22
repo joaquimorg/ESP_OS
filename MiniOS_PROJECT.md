@@ -1376,6 +1376,10 @@ alocação dinâmica. `module load` ativa o driver e regista os dispositivos que
 este fornece no Device Manager; `module unload` liberta os recursos e remove os
 dispositivos. Código externo e ELF continuam fora deste milestone.
 
+`/modules` é um namespace virtual reservado, tal como `/dev`. Apenas o Module
+Manager o preenche; criação, escrita e remoção são rejeitadas, enquanto
+`ls /modules` apresenta os módulos registados e o respetivo estado.
+
 O primeiro módulo é `ssd1315`, para OLED monocromático 128×64 sobre I²C. Usa um
 framebuffer estático de 1024 bytes, endereço `0x3c` por omissão e regista
 `/dev/display0`. O Device Manager passou a suportar escrita, controlo e remoção

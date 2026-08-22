@@ -31,6 +31,7 @@
 #define OS_FS_NOT_EMPTY -7
 #define OS_FS_PATH_TOO_LONG -8
 #define OS_FS_IS_DEVICE -9
+#define OS_FS_READ_ONLY -10
 
 #define OS_DEVICE_MAX 8
 #define OS_DEVICE_NAME_MAX 15

@@ -28,6 +28,17 @@ static bool is_device_path(const char *path)
            (path[sizeof("/dev/") - 1U] != '\0');
 }
 
+static bool is_module_directory(const char *path)
+{
+    return strcmp(path, "/modules") == 0;
+}
+
+static bool is_module_path(const char *path)
+{
+    return (strncmp(path, "/modules/", sizeof("/modules/") - 1U) == 0) &&
+           (path[sizeof("/modules/") - 1U] != '\0');
+}
+
 static int result_from_errno(int error)
 {
     switch (error) {
@@ -262,6 +273,9 @@ int os_fs_chdir(const char *path)
     if (is_device_path(logical)) {
         return OS_FS_IS_DEVICE;
     }
+    if (is_module_path(logical)) {
+        return OS_FS_NOT_DIRECTORY;
+    }
     if (stat(physical, &status) != 0) {
         return result_from_errno(errno);
     }
@@ -290,6 +304,12 @@ int os_fs_list(const char *path, os_fs_list_callback_t callback, void *context)
     }
     if (is_device_path(logical)) {
         return OS_FS_IS_DEVICE;
+    }
+    if (is_module_path(logical)) {
+        return OS_FS_NOT_DIRECTORY;
+    }
+    if (is_module_directory(logical)) {
+        return OS_FS_OK;
     }
     directory = opendir(physical);
     if (directory == NULL) {
@@ -341,6 +361,9 @@ int os_fs_read(const char *path, os_fs_read_callback_t callback, void *context)
     if (is_device_path(logical)) {
         return OS_FS_IS_DEVICE;
     }
+    if (is_module_path(logical) || is_module_directory(logical)) {
+        return OS_FS_READ_ONLY;
+    }
     file = fopen(physical, "rb");
     if (file == NULL) {
         return result_from_errno(errno);
@@ -377,6 +400,9 @@ int os_fs_write(const char *path, const char *data, int append)
     if (is_device_path(logical) || is_device_directory(logical)) {
         return OS_FS_IS_DEVICE;
     }
+    if (is_module_path(logical) || is_module_directory(logical)) {
+        return OS_FS_READ_ONLY;
+    }
     file = fopen(physical, append ? "ab" : "wb");
     if (file == NULL) {
         return result_from_errno(errno);
@@ -408,6 +434,9 @@ int os_fs_mkdir(const char *path)
     if (is_device_path(logical) || is_device_directory(logical)) {
         return OS_FS_IS_DEVICE;
     }
+    if (is_module_path(logical) || is_module_directory(logical)) {
+        return OS_FS_READ_ONLY;
+    }
     if (strcmp(logical, "/") == 0) {
         return OS_FS_ALREADY_EXISTS;
     }
@@ -430,6 +459,9 @@ int os_fs_remove(const char *path)
     }
     if (is_device_path(logical) || is_device_directory(logical)) {
         return OS_FS_IS_DEVICE;
+    }
+    if (is_module_path(logical) || is_module_directory(logical)) {
+        return OS_FS_READ_ONLY;
     }
     if (strcmp(logical, "/") == 0) {
         return OS_FS_INVALID_ARGUMENT;

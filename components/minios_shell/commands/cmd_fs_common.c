@@ -33,6 +33,9 @@ int minios_cmd_fs_report_error(const char *operation, const char *path,
     case OS_FS_IS_DEVICE:
         reason = "device path is not a regular file";
         break;
+    case OS_FS_READ_ONLY:
+        reason = "reserved read-only namespace";
+        break;
     default:
         reason = "filesystem error";
         break;

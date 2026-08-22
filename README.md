@@ -184,8 +184,10 @@ ls /dev
 
 O registry aceita até oito dispositivos sem alocação dinâmica e contém `uart0`,
 `gpio`, `i2c0`, `spi0` e `wifi0`. O comando `ls` combina o conteúdo persistente do
-LittleFS com os dispositivos virtuais quando lista `/dev`. O namespace `/dev`
-é reservado: comandos de ficheiros não criam, alteram ou removem dispositivos.
+LittleFS com os dispositivos virtuais quando lista `/dev`. Os namespaces `/dev`
+e `/modules` são reservados: comandos de ficheiros não podem criar, alterar ou
+remover entradas. `ls /modules` mostra exclusivamente os módulos registados no
+Module Manager e o respetivo estado.
 
 ## Módulos e OLED SSD1315
 
@@ -205,6 +207,7 @@ Ligação e utilização, usando GPIO 8/9 apenas como exemplo:
 i2c init 8 9
 i2c scan
 module list
+ls /modules
 module load ssd1315
 device info display0
 device write display0 Ola MiniOS
@@ -664,8 +667,10 @@ ls /dev
 
 The registry holds up to eight devices without dynamic allocation and contains
 `uart0`, `gpio`, `i2c0`, `spi0`, and `wifi0`. When listing `/dev`, `ls` combines persistent
-LittleFS entries with virtual devices. The `/dev` namespace is reserved, so
-filesystem commands cannot create, modify, or remove devices.
+LittleFS entries with virtual devices. The `/dev` and `/modules` namespaces are
+reserved, so filesystem commands cannot create, modify, or remove entries.
+`ls /modules` shows only modules registered with the Module Manager and their
+current state.
 
 ### Modules and SSD1315 OLED
 
@@ -685,6 +690,7 @@ Setup and usage, with GPIO 8/9 only as an example:
 i2c init 8 9
 i2c scan
 module list
+ls /modules
 module load ssd1315
 device info display0
 device write display0 Hello MiniOS
