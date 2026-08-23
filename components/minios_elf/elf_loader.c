@@ -29,7 +29,8 @@
 #define ELF_SECTION_ABSOLUTE 0xfff1U
 #define ELF_SYMBOL_GLOBAL 1U
 #define ELF_SYMBOL_FUNCTION 2U
-#define ELF_FLAG_EXECUTE 1U
+#define ELF_PROGRAM_FLAG_EXECUTE 1U
+#define ELF_SECTION_FLAG_EXECUTE 4U
 #define ELF_DYNAMIC_NEEDED 1
 #define ELF_RISCV_NONE 0U
 #define ELF_RISCV_32 1U
@@ -359,7 +360,7 @@ static int image_bounds(const unsigned char *file, size_t file_size,
         if (end > high) {
             high = end;
         }
-        if (((program->flags & ELF_FLAG_EXECUTE) != 0U) &&
+        if (((program->flags & ELF_PROGRAM_FLAG_EXECUTE) != 0U) &&
             (header->entry >= program->virtual_address) &&
             (header->entry < end)) {
             executable_entry = 1;
@@ -441,7 +442,8 @@ static int symbol_value(const elf_symbol_t *symbol, const char *strings,
     if (symbol->section >= section_count) {
         return MINIOS_ELF_INVALID_FORMAT;
     }
-    *value = (((sections[symbol->section].flags & ELF_FLAG_EXECUTE) != 0U)
+    *value = (((sections[symbol->section].flags &
+                ELF_SECTION_FLAG_EXECUTE) != 0U)
                   ? execute_bias
                   : writable_bias) +
              symbol->value;
@@ -461,7 +463,7 @@ static int virtual_address_value(uint32_t address,
 
         if ((section->size != 0U) && (address >= section->address) &&
             (address - section->address < section->size)) {
-            *value = (((section->flags & ELF_FLAG_EXECUTE) != 0U)
+            *value = (((section->flags & ELF_SECTION_FLAG_EXECUTE) != 0U)
                           ? execute_bias
                           : writable_bias) +
                      address;
@@ -597,7 +599,7 @@ static int relocate_image(const unsigned char *file, size_t file_size,
                 return MINIOS_ELF_INVALID_FORMAT;
             }
             place = (((sections[relocation_section->info].flags &
-                       ELF_FLAG_EXECUTE) != 0U)
+                       ELF_SECTION_FLAG_EXECUTE) != 0U)
                          ? execute_bias
                          : writable_bias) +
                     relocation->offset;
@@ -696,7 +698,7 @@ static int relocate_image(const unsigned char *file, size_t file_size,
                 }
                 high_value += (uintptr_t)high->addend;
                 high_place = (((sections[relocation_section->info].flags &
-                                ELF_FLAG_EXECUTE) != 0U)
+                                ELF_SECTION_FLAG_EXECUTE) != 0U)
                                   ? execute_bias
                                   : writable_bias) +
                              high->offset;
