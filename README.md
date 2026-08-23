@@ -66,6 +66,8 @@ download, criação de pastas e remoção. `/dev` lista os dispositivos e
 sessão WebSocket pode estar ativa. HTTP/WS não é encriptado e deve permanecer
 numa rede de confiança.
 
+![WebShell do MiniOS com shell interativa e explorador de ficheiros](img/web_shell.png)
+
 ## Referência de comandos
 
 Os comandos efetivamente disponíveis dependem das opções usadas ao compilar o
@@ -393,6 +395,8 @@ blocked, run `.\tools\webshell\serve-webshell.ps1`. The explorer shows devices
 under read-only `/dev` and modules with their status under read-only
 `/modules`. TCP and HTTP/WS are not encrypted and must only be used on trusted
 networks.
+
+![MiniOS WebShell with interactive shell and file explorer](img/web_shell.png)
 
 ### Command reference
 

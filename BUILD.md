@@ -59,6 +59,8 @@ rede remove também as shells TCP/Web e os comandos `wifi`, `ifconfig` e
 `ping`. Desligar uma aplicação interna retira o respetivo source e registo do
 firmware.
 
+![Menu MiniOS Interfaces no menuconfig](img/menuconfig.png)
+
 ### Perfis de build
 
 O perfil sem rede utiliza `sdkconfig.no-network.defaults`:
@@ -320,6 +322,8 @@ Project options are centralized under `MiniOS -> Interfaces` and
 external WebShell service. Components select the `hello`, `counter`, and
 `welcome` built-in applications individually, the ELF loader, built-in device
 modules, and the SSD1315 driver. Dependent options disappear automatically.
+
+![MiniOS Interfaces menu in menuconfig](img/menuconfig.png)
 
 ### Build profiles
 
