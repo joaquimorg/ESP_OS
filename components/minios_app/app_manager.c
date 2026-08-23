@@ -16,7 +16,10 @@ typedef struct {
     StaticTask_t task_storage;
     StackType_t stack[APP_TASK_STACK_SIZE];
     TaskHandle_t task;
-    const os_app_descriptor_t *application;
+    char name[OS_APP_NAME_MAX + 1U];
+    os_app_main_t main;
+    minios_app_cleanup_t cleanup;
+    void *cleanup_context;
     uint16_t pid;
     volatile int stop_requested;
     os_process_state_t state;
@@ -90,7 +93,9 @@ static void app_worker(void *context)
     app_process_slot_t *slot = (app_process_slot_t *)context;
 
     for (;;) {
-        const os_app_descriptor_t *application;
+        os_app_main_t main;
+        minios_app_cleanup_t cleanup;
+        void *cleanup_context;
         int argc;
         char **argv;
         int result;
@@ -99,20 +104,27 @@ static void app_worker(void *context)
         if (xSemaphoreTake(app_mutex, portMAX_DELAY) != pdTRUE) {
             continue;
         }
-        application = slot->application;
+        main = slot->main;
+        cleanup = slot->cleanup;
+        cleanup_context = slot->cleanup_context;
         argc = slot->argc;
         argv = slot->argv;
         slot->state = slot->stop_requested ? OS_PROCESS_STOPPING
                                            : OS_PROCESS_RUNNING;
         xSemaphoreGive(app_mutex);
 
-        result = application->main(argc, argv);
+        result = main(argc, argv);
 
         if (xSemaphoreTake(app_mutex, portMAX_DELAY) == pdTRUE) {
             slot->exit_code = result;
             slot->finished_ms = os_uptime_ms();
             slot->state = OS_PROCESS_EXITED;
+            slot->cleanup = NULL;
+            slot->cleanup_context = NULL;
             xSemaphoreGive(app_mutex);
+        }
+        if (cleanup != NULL) {
+            cleanup(cleanup_context);
         }
     }
 }
@@ -206,15 +218,15 @@ const os_app_descriptor_t *os_app_find(const char *name)
     return NULL;
 }
 
-int os_app_run(const char *name, int argc, char **argv, uint16_t *pid)
+static int run_entry(const char *name, os_app_main_t main, int argc,
+                     char **argv, uint16_t *pid,
+                     minios_app_cleanup_t cleanup, void *cleanup_context)
 {
-    const os_app_descriptor_t *application = os_app_find(name);
     app_process_slot_t *slot = NULL;
     size_t index;
 
-    if ((application == NULL) || (pid == NULL)) {
-        return (application == NULL) ? OS_APP_NOT_FOUND
-                                     : OS_APP_INVALID_ARGUMENT;
+    if (!app_name_is_valid(name) || (main == NULL) || (pid == NULL)) {
+        return OS_APP_INVALID_ARGUMENT;
     }
     if ((argc < 0) || (argc > OS_APP_MAX_ARGS) ||
         ((argc > 0) && (argv == NULL))) {
@@ -242,7 +254,10 @@ int os_app_run(const char *name, int argc, char **argv, uint16_t *pid)
         return OS_APP_PROCESS_LIMIT;
     }
 
-    slot->application = application;
+    (void)snprintf(slot->name, sizeof(slot->name), "%s", name);
+    slot->main = main;
+    slot->cleanup = cleanup;
+    slot->cleanup_context = cleanup_context;
     slot->argc = argc;
     for (index = 0U; index < (size_t)argc; ++index) {
         size_t length = strlen(argv[index]);
@@ -264,6 +279,24 @@ int os_app_run(const char *name, int argc, char **argv, uint16_t *pid)
     xSemaphoreGive(app_mutex);
     xTaskNotifyGive(slot->task);
     return OS_APP_OK;
+}
+
+int os_app_run(const char *name, int argc, char **argv, uint16_t *pid)
+{
+    const os_app_descriptor_t *application = os_app_find(name);
+
+    if (application == NULL) {
+        return OS_APP_NOT_FOUND;
+    }
+    return run_entry(application->name, application->main, argc, argv, pid,
+                     NULL, NULL);
+}
+
+int minios_app_run_external(const char *name, os_app_main_t main,
+                            int argc, char **argv, uint16_t *pid,
+                            minios_app_cleanup_t cleanup, void *context)
+{
+    return run_entry(name, main, argc, argv, pid, cleanup, context);
 }
 
 int os_app_kill(uint16_t pid)
@@ -347,8 +380,7 @@ int os_process_at(size_t requested, os_process_info_t *info)
             continue;
         }
         info->pid = slot->pid;
-        (void)snprintf(info->name, sizeof(info->name), "%s",
-                       slot->application->name);
+        (void)snprintf(info->name, sizeof(info->name), "%s", slot->name);
         info->state = slot->state;
         info->exit_code = slot->exit_code;
         info->elapsed_ms = ((slot->state == OS_PROCESS_EXITED)

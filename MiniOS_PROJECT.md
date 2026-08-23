@@ -1422,7 +1422,8 @@ welcome  saudação e endereço IP em /dev/display0
 
 O comando `run` mantém compatibilidade com scripts: nomes presentes no registry
 iniciam aplicações em background; os restantes caminhos são executados pelo
-motor de scripts do Milestone 8. Código externo e ELF permanecem no Milestone 11.
+motor de scripts do Milestone 8. Aplicações ELF externas são tratadas pelo
+loader do Milestone 11.
 
 ---
 
@@ -1446,13 +1447,34 @@ namespaces protegidos do filesystem, incluindo `/dev` e `/modules`.
 
 ## Milestone 11 — ELF
 
-Carregar aplicações ELF externas.
-
-Objetivo:
+Implementado o carregamento de aplicações ELF externas:
 
 ```text
-/bin/*.elf
+elf receive hello_elf
+elf info /bin/hello_elf.elf
+run /bin/hello_elf.elf [argumentos...]
 ```
+
+O componente `minios_elf` aceita ELF32 little-endian `ET_DYN` para RISC-V
+RV32IMC, com entry point global `minios_app_main`. Valida todos os offsets e
+tamanhos antes de copiar segmentos, limita o ficheiro e a imagem a 32 KiB,
+rejeita `PT_INTERP`, TLS, dependências dinâmicas e símbolos fora da whitelist da
+API MiniOS, e suporta apenas as relocations necessárias ao toolchain fornecido.
+
+No ESP32-C3, os endereços IRAM e DRAM da mesma SRAM são aliases diferentes. O
+loader escreve através do alias DRAM, executa através do alias IRAM e reaplica
+relocations PC-relative para que código, literais e dados usem o endereço
+correto. A imagem pertence ao processo e é libertada automaticamente pelo
+Application Manager quando `minios_app_main` retorna.
+
+O comando `elf receive <nome>` recebe hexadecimal pela consola até `Ctrl-D`,
+valida o ficheiro e grava-o em `/bin/<nome>.elf`. Recusa substituir um ficheiro
+existente; este deve ser removido explicitamente primeiro.
+
+Por ser execução nativa sem sandbox, o loader aceita apenas binários de
+confiança. A build desativa `CONFIG_ESP_SYSTEM_MEMPROT_FEATURE`, requisito para
+memória carregável e executável no ESP32-C3. O script
+`tools/elf/build-elf-app.ps1` fixa as opções ABI, PIC e relocations compatíveis.
 
 ---
 

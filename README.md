@@ -4,11 +4,11 @@
 
 MiniOS é um pequeno sistema operativo/runtime modular para microcontroladores ESP32, desenvolvido em C sobre ESP-IDF e FreeRTOS. O projeto inspira-se em conceitos do CP/M e Unix, adaptados às limitações e necessidades de um microcontrolador.
 
-A versão atual é a **MiniOS 1.00**, direcionada inicialmente ao **ESP32-C3**.
+A versão atual é a **MiniOS 1.10**, direcionada inicialmente ao **ESP32-C3**.
 
 ## Estado do projeto
 
-As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 e 10 estão implementadas:
+As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 e 11 estão implementadas:
 
 - arranque do MiniOS;
 - kernel mínimo;
@@ -27,9 +27,9 @@ As Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 e 10 estão implementadas:
 - shell scripting com variáveis, controlo de fluxo e `/boot/startup.rc`;
 - gestão de módulos compilados e módulo OLED SSD1315 128×64 sobre I²C;
 - aplicações compiladas, processos limitados e comandos `app`, `run`, `ps` e
-  `kill`.
-
-Ainda não estão implementadas aplicações externas ou carregamento ELF.
+  `kill`;
+- carregamento controlado de aplicações ELF32 RISC-V externas a partir de
+  `/bin`.
 
 ## Arquitetura
 
@@ -56,8 +56,9 @@ Princípios atuais:
 - o shell utiliza `minios_console_t` e não depende diretamente da UART;
 - dependências ESP-IDF e FreeRTOS ficam confinadas às camadas de implementação dos componentes;
 - cada comando está isolado e é adicionado através do command registry;
-- não são utilizadas alocações dinâmicas pelo código MiniOS atual;
-- todos os buffers e registries têm limites explícitos.
+- registries, workers e buffers permanentes têm limites estáticos explícitos;
+- o loader ELF usa memória dinâmica limitada durante o carregamento e liberta a
+  imagem quando o processo termina.
 
 ## Estrutura do projeto
 
@@ -76,6 +77,7 @@ ESP_OS/
     ├── minios_config/
     ├── minios_console/
     ├── minios_device/
+    ├── minios_elf/
     ├── minios_fs/
     ├── minios_hal/
     ├── minios_kernel/
@@ -92,7 +94,7 @@ O documento [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) contém a arquitetura compl
 Depois do arranque, o sistema apresenta:
 
 ```text
-MiniOS 1.00
+MiniOS 1.10
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -140,6 +142,7 @@ Comandos disponíveis:
 | `cat` | Mostra o conteúdo de um ficheiro |
 | `echo` | Escreve texto num ficheiro |
 | `edit` | Edita interativamente um ficheiro de texto ou script |
+| `elf` | Recebe e inspeciona aplicações ELF externas |
 | `mkdir` | Cria um diretório |
 | `rm` | Remove um ficheiro ou diretório vazio |
 | `run` | Executa uma aplicação compilada ou um script |
@@ -201,7 +204,7 @@ Operações do Device Manager:
 device list
 device info uart0
 device info /dev/gpio
-device write display0 MiniOS 1.00
+device write display0 MiniOS 1.10
 device control display0 clear
 ls /dev
 ```
@@ -297,6 +300,64 @@ run welcome
 
 `run /caminho/script.rc` continua a executar scripts do Milestone 8; nomes que
 correspondam a aplicações registadas iniciam uma aplicação em background.
+
+## Aplicações ELF externas
+
+O Milestone 11 permite carregar aplicações ELF32 RISC-V diretamente de
+`/bin/*.elf`. O loader valida cabeçalhos, segmentos, limites, relocations e a
+entry point `minios_app_main` antes de criar o processo. Apenas símbolos da API
+MiniOS autorizada podem ser importados; símbolos internos do ESP-IDF e da libc
+são rejeitados.
+
+Uma aplicação externa tem a mesma assinatura de uma aplicação compilada:
+
+```c
+#include "minios.h"
+
+int minios_app_main(int argc, char **argv)
+{
+    os_print("Hello from ELF\r\n");
+    return 0;
+}
+```
+
+O exemplo incluído pode ser compilado numa shell PowerShell com o toolchain do
+ESP-IDF:
+
+```powershell
+.\tools\elf\build-elf-app.ps1 `
+    -Source .\tools\elf\examples\hello_elf.c `
+    -Output .\hello_elf.elf
+```
+
+Para enviar o binário pela consola, converta-o para hexadecimal, execute o modo
+de receção, cole o conteúdo e termine com `Ctrl-D`:
+
+```powershell
+[Convert]::ToHexString([IO.File]::ReadAllBytes(".\hello_elf.elf")) |
+    Set-Clipboard
+```
+
+```text
+elf receive hello_elf
+<colar o hexadecimal>
+Ctrl-D
+elf info /bin/hello_elf.elf
+run /bin/hello_elf.elf primeiro segundo
+ps
+```
+
+O nome aceita até 15 caracteres e o ficheiro e a imagem carregada têm um limite
+de 32 KiB. Cada execução usa um dos quatro workers existentes; a imagem é
+libertada automaticamente quando termina. O formato suportado é o produzido
+pelo script fornecido: ELF `ET_DYN`, RV32IMC, sem bibliotecas, construtores ou
+TLS e com um conjunto restrito de relocations RISC-V.
+
+Aviso de segurança: aplicações ELF executam código nativo sem sandbox. Para
+permitir SRAM escrita durante o load e executada depois, o build desativa
+`CONFIG_ESP_SYSTEM_MEMPROT_FEATURE`. Instale apenas binários de confiança. A
+validação protege o loader contra formatos inválidos, mas não torna seguro um
+programa malicioso.
 
 ## Shell scripting
 
@@ -418,7 +479,7 @@ idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONF
 Com `CONFIG_MINIOS_ENABLE_NETWORK` desativada, `wifi`, `ifconfig`, `ping` e
 `/dev/wifi0` não são incluídos. O arranque apresenta `Network disabled` e as
 dependências Wi-Fi não entram no firmware final. No build ESP32-C3 medido, o
-binário desceu de cerca de 933 KiB para 331 KiB, poupando cerca de 602 KiB.
+binário desceu de cerca de 935 KiB para 333 KiB, poupando cerca de 602 KiB.
 
 ## Consola remota TCP
 
@@ -456,7 +517,7 @@ Limites atuais do shell:
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  29
+#define MINIOS_SHELL_MAX_COMMANDS  30
 ```
 
 O parser suporta apenas comandos e argumentos separados por espaços. Pipes, redirecionamento, wildcards e expansão de variáveis ainda não são suportados.
@@ -485,7 +546,7 @@ idf.py -p PORT flash monitor
 
 Substitua `PORT` pela porta série correspondente à placa.
 
-O build atual gera `build/minios.bin` e ocupa aproximadamente 933 KiB com a
+O build atual gera `build/minios.bin` e ocupa aproximadamente 935 KiB com a
 configuração ESP-IDF/Wi-Fi atual, deixando 9% livre na partição de aplicação.
 
 ## Adicionar um comando
@@ -548,7 +609,7 @@ Identificador SPDX: `Apache-2.0`.
 | 8 | Shell scripting e `/boot/startup.rc` | Concluída |
 | 9 | Gestão de módulos compilados | Concluída |
 | 10 | Gestão de aplicações e processos | Concluída |
-| 11 | Carregamento de aplicações ELF | Futura |
+| 11 | Carregamento de aplicações ELF | Concluída |
 | 12 | Package manager e instalação via rede | Futura |
 
 O desenvolvimento deve continuar milestone a milestone, preservando o desacoplamento entre componentes e a utilização previsível de memória.
@@ -561,11 +622,11 @@ O desenvolvimento deve continuar milestone a milestone, preservando o desacoplam
 
 MiniOS is a small modular operating system/runtime for ESP32 microcontrollers, written in C on top of ESP-IDF and FreeRTOS. It takes inspiration from CP/M and Unix concepts while adapting them to the constraints and requirements of a microcontroller.
 
-The current release is **MiniOS 1.00**, initially targeting the **ESP32-C3**.
+The current release is **MiniOS 1.10**, initially targeting the **ESP32-C3**.
 
 ### Project status
 
-Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are implemented:
+Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, and 11 are implemented:
 
 - MiniOS boot sequence;
 - minimal kernel;
@@ -583,9 +644,8 @@ Milestones 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are implemented:
 - a TCP remote shell sharing the UART command registry;
 - shell scripting with variables, control flow, and `/boot/startup.rc`;
 - compiled module management and an I²C SSD1315 128×64 OLED module;
-- compiled applications, bounded processes, and `app`, `run`, `ps`, and `kill`.
-
-External applications and ELF loading are not implemented yet.
+- compiled applications, bounded processes, and `app`, `run`, `ps`, and `kill`;
+- controlled loading of external RISC-V ELF32 applications from `/bin`.
 
 ### Architecture
 
@@ -612,8 +672,9 @@ Current design principles:
 - the shell uses `minios_console_t` and has no direct UART dependency;
 - ESP-IDF and FreeRTOS dependencies are confined to component implementation layers;
 - every command is isolated and added through the command registry;
-- the current MiniOS code does not perform dynamic allocations;
-- all buffers and registries have explicit limits.
+- registries, workers, and permanent buffers have explicit static bounds;
+- the ELF loader uses bounded dynamic memory while loading and releases the
+  image when its process exits.
 
 ### Project structure
 
@@ -632,6 +693,7 @@ ESP_OS/
     ├── minios_config/
     ├── minios_console/
     ├── minios_device/
+    ├── minios_elf/
     ├── minios_fs/
     ├── minios_hal/
     ├── minios_kernel/
@@ -648,7 +710,7 @@ See [`MiniOS_PROJECT.md`](MiniOS_PROJECT.md) for the complete architecture, desi
 The system displays the following after boot:
 
 ```text
-MiniOS 1.00
+MiniOS 1.10
 Copyright 2026 joaquim.org
 [ OK ] Kernel
 [ OK ] Console
@@ -695,6 +757,7 @@ Available commands:
 | `cat` | Displays a file |
 | `echo` | Writes text to a file |
 | `edit` | Interactively edits a text or script file |
+| `elf` | Receives and inspects external ELF applications |
 | `mkdir` | Creates a directory |
 | `rm` | Removes a file or empty directory |
 | `run` | Runs a compiled application or a script |
@@ -756,7 +819,7 @@ Device Manager operations:
 device list
 device info uart0
 device info /dev/gpio
-device write display0 MiniOS 1.00
+device write display0 MiniOS 1.10
 device control display0 clear
 ls /dev
 ```
@@ -852,6 +915,62 @@ run welcome
 
 `run /path/script.rc` remains compatible with Milestone 8 scripts; a name that
 matches a registered application starts that application in the background.
+
+### External ELF applications
+
+Milestone 11 loads RISC-V ELF32 applications directly from `/bin/*.elf`. Before
+starting a process, the loader validates headers, segments, bounds, relocations,
+and the `minios_app_main` entry point. Applications may import only approved
+MiniOS API symbols; internal ESP-IDF and libc symbols are rejected.
+
+External applications use the same entry point as compiled applications:
+
+```c
+#include "minios.h"
+
+int minios_app_main(int argc, char **argv)
+{
+    os_print("Hello from ELF\r\n");
+    return 0;
+}
+```
+
+Build the included example from PowerShell with the ESP-IDF toolchain:
+
+```powershell
+.\tools\elf\build-elf-app.ps1 `
+    -Source .\tools\elf\examples\hello_elf.c `
+    -Output .\hello_elf.elf
+```
+
+Convert the result to hexadecimal, start the receiver, paste it, and finish
+with `Ctrl-D`:
+
+```powershell
+[Convert]::ToHexString([IO.File]::ReadAllBytes(".\hello_elf.elf")) |
+    Set-Clipboard
+```
+
+```text
+elf receive hello_elf
+<paste hexadecimal data>
+Ctrl-D
+elf info /bin/hello_elf.elf
+run /bin/hello_elf.elf first second
+ps
+```
+
+Names are limited to 15 characters; files and loaded images are limited to
+32 KiB. Each execution uses one of the four existing workers, and its image is
+released automatically on exit. The supported format is generated by the
+provided script: `ET_DYN`, RV32IMC, no libraries, constructors, or TLS, and a
+restricted set of RISC-V relocations.
+
+Security warning: ELF applications execute native code without a sandbox. The
+build disables `CONFIG_ESP_SYSTEM_MEMPROT_FEATURE` so SRAM can be written while
+loading and executed afterwards. Install trusted binaries only. Format
+validation protects the loader from malformed input; it cannot make malicious
+native code safe.
 
 ### Shell scripting
 
@@ -971,7 +1090,7 @@ idf.py -B build-no-network -D "SDKCONFIG=build-no-network/sdkconfig" -D "SDKCONF
 When `CONFIG_MINIOS_ENABLE_NETWORK` is disabled, `wifi`, `ifconfig`, `ping`,
 and `/dev/wifi0` are omitted. Boot reports `Network disabled` and the Wi-Fi
 dependencies are not linked into the final firmware. In the measured ESP32-C3
-build, the binary dropped from about 933 KiB to 331 KiB, saving about 602 KiB.
+build, the binary dropped from about 935 KiB to 333 KiB, saving about 602 KiB.
 
 ### TCP remote console
 
@@ -1008,7 +1127,7 @@ Current shell limits:
 ```c
 #define MINIOS_SHELL_MAX_LINE     128
 #define MINIOS_SHELL_MAX_ARGS      36
-#define MINIOS_SHELL_MAX_COMMANDS  29
+#define MINIOS_SHELL_MAX_COMMANDS  30
 ```
 
 The parser currently supports commands and space-separated arguments only. Pipes, redirection, wildcards, and variable expansion are not supported yet.
@@ -1037,7 +1156,7 @@ idf.py -p PORT flash monitor
 
 Replace `PORT` with the serial port assigned to the board.
 
-The current build generates `build/minios.bin` and uses approximately 933 KiB
+The current build generates `build/minios.bin` and uses approximately 935 KiB
 with the current ESP-IDF/Wi-Fi configuration, leaving 9% of the application
 partition free.
 
@@ -1101,7 +1220,7 @@ SPDX identifier: `Apache-2.0`.
 | 8 | Shell scripting and `/boot/startup.rc` | Complete |
 | 9 | Compiled module management | Complete |
 | 10 | Application and process management | Complete |
-| 11 | ELF application loading | Future |
+| 11 | ELF application loading | Complete |
 | 12 | Package manager and network installation | Future |
 
 Development should continue one milestone at a time while preserving component decoupling and predictable memory usage.

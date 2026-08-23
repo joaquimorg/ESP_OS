@@ -1,6 +1,16 @@
 #include "shell_internal.h"
 
+#include <string.h>
+
 #include "minios_app.h"
+#include "minios_elf.h"
+
+static int has_elf_extension(const char *path)
+{
+    size_t length = strlen(path);
+
+    return (length > 4U) && (strcmp(path + length - 4U, ".elf") == 0);
+}
 
 static int run_script_command(int argc, char **argv, int source)
 {
@@ -41,6 +51,18 @@ static int cmd_run(int argc, char **argv)
             return -1;
         }
         minios_shell_printf("Started %s as PID %u\r\n", application->name,
+                            (unsigned int)pid);
+        return 0;
+    }
+    if (has_elf_extension(argv[1])) {
+        result = minios_elf_run(argv[1], argc - 2,
+                                (argc > 2) ? &argv[2] : NULL, &pid);
+        if (result != MINIOS_ELF_OK) {
+            minios_shell_printf("run: %s: %s\r\n", argv[1],
+                                minios_elf_error_string(result));
+            return -1;
+        }
+        minios_shell_printf("Started %s as PID %u\r\n", argv[1],
                             (unsigned int)pid);
         return 0;
     }

@@ -14,6 +14,7 @@ int minios_cmd_cd_register(void);
 int minios_cmd_config_register(void);
 int minios_cmd_device_register(void);
 int minios_cmd_edit_register(void);
+int minios_cmd_elf_register(void);
 int minios_cmd_echo_register(void);
 int minios_cmd_help_register(void);
 int minios_cmd_info_register(void);

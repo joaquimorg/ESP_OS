@@ -13,6 +13,7 @@ set(MINIOS_SHELL_SOURCES
     "commands/cmd_device.c"
     "commands/cmd_echo.c"
     "commands/cmd_edit.c"
+    "commands/cmd_elf.c"
     "commands/cmd_help.c"
     "commands/cmd_gpio.c"
     "commands/cmd_i2c.c"
@@ -42,5 +43,5 @@ idf_component_register(
     SRCS ${MINIOS_SHELL_SOURCES}
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
-    REQUIRES minios_console minios_api minios_app minios_config minios_device minios_fs minios_hal minios_module minios_net
+    REQUIRES minios_console minios_api minios_app minios_config minios_device minios_elf minios_fs minios_hal minios_module minios_net
 )
