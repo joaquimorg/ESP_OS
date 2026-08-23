@@ -232,16 +232,45 @@ device write display0 --at 12 24 Text at x12 y24
 device control display0 contrast 160
 device control display0 invert
 device control display0 normal
+device control display0 frame-clear
+device control display0 pixel 64 32 1
+device control display0 refresh
 device control display0 clear
 module unload ssd1315
 ```
 
 O endereço por omissão é `0x3c`; use, por exemplo,
 `module load ssd1315 0x3d` para o substituir. O dispositivo `/dev/display0`
-suporta `clear`, `refresh`, `newline`, `position`, `contrast`, `on`, `off`,
-`invert` e `normal`. `position <x> <y>` usa píxeis, com `x=0..122` e
+suporta `clear`, `frame-clear`, `pixel`, `refresh`, `newline`, `position`,
+`contrast`, `on`, `off`, `invert` e `normal`. `pixel <x> <y> [0|1]` altera o
+framebuffer sem comunicar imediatamente com o display; depois de desenhar um
+frame, use `refresh`. `position <x> <y>` usa píxeis, com `x=0..122` e
 `y=0..57` para caracteres 5×7 totalmente visíveis. Enquanto o módulo estiver
 carregado, o bus I²C não pode ser reconfigurado.
+
+### Exemplo ELF: bola animada
+
+O exemplo [ssd1315_ball.c](tools/elf/examples/ssd1315_ball.c) demonstra uma
+aplicação ELF a utilizar um dispositivo fornecido por um módulo. Desenha uma
+bola preenchida, move-a e inverte a direção quando atinge as quatro margens.
+Compile-a seguindo o [guia de build](BUILD.md#compilar-uma-aplicação-elf-externa)
+e carregue `ssd1315_ball.elf` para `/bin` através da WebShell ou de
+`elf receive`.
+
+```text
+i2c init 8 9
+module load ssd1315
+run /bin/ssd1315_ball.elf
+ps
+kill <pid>
+```
+
+Por omissão, o intervalo é 40 ms e a animação continua até `kill`. Para usar
+60 ms e terminar automaticamente após 300 frames:
+
+```text
+run /bin/ssd1315_ball.elf 60 300
+```
 
 ## Rede
 
@@ -506,13 +535,41 @@ device control display0 newline
 device write display0 Second line
 device write display0 --at 12 24 Positioned text
 device control display0 contrast 160
+device control display0 frame-clear
+device control display0 pixel 64 32 1
+device control display0 refresh
 device control display0 clear
 module unload ssd1315
 ```
 
 The default address is `0x3c`; override it with
-`module load ssd1315 0x3d`. `/dev/display0` supports `clear`, `refresh`,
-`newline`, `position`, `contrast`, `on`, `off`, `invert`, and `normal`.
+`module load ssd1315 0x3d`. `/dev/display0` supports `clear`, `frame-clear`,
+`pixel`, `refresh`, `newline`, `position`, `contrast`, `on`, `off`, `invert`,
+and `normal`. `pixel <x> <y> [0|1]` changes the framebuffer without updating
+the display; call `refresh` once the frame is complete.
+
+#### ELF example: animated ball
+
+[ssd1315_ball.c](tools/elf/examples/ssd1315_ball.c) demonstrates an external
+ELF application using a device supplied by a module. It draws a filled ball,
+moves it, and reverses direction at all four edges. Build it using the
+[development guide](BUILD.md#building-an-external-elf-application), then upload
+`ssd1315_ball.elf` to `/bin` with the WebShell or `elf receive`.
+
+```text
+i2c init 8 9
+module load ssd1315
+run /bin/ssd1315_ball.elf
+ps
+kill <pid>
+```
+
+The default frame delay is 40 ms and the animation runs until `kill`. To use a
+60 ms delay and stop automatically after 300 frames:
+
+```text
+run /bin/ssd1315_ball.elf 60 300
+```
 
 ### Networking
 

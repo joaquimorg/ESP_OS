@@ -218,6 +218,65 @@ static int parse_position(const char *value, uint8_t *x, uint8_t *y)
     return 0;
 }
 
+static int parse_pixel(const char *value, uint8_t *x, uint8_t *y,
+                       uint8_t *enabled)
+{
+    char *end;
+    unsigned long parsed_x;
+    unsigned long parsed_y;
+    unsigned long parsed_enabled = 1U;
+
+    if ((value == NULL) || (x == NULL) || (y == NULL) ||
+        (enabled == NULL)) {
+        return -1;
+    }
+    parsed_x = strtoul(value, &end, 0);
+    if ((end == value) || ((*end != ' ') && (*end != '\t'))) {
+        return -1;
+    }
+    while ((*end == ' ') || (*end == '\t')) {
+        ++end;
+    }
+    value = end;
+    parsed_y = strtoul(value, &end, 0);
+    if (end == value) {
+        return -1;
+    }
+    while ((*end == ' ') || (*end == '\t')) {
+        ++end;
+    }
+    if (*end != '\0') {
+        value = end;
+        parsed_enabled = strtoul(value, &end, 0);
+        while ((*end == ' ') || (*end == '\t')) {
+            ++end;
+        }
+        if ((end == value) || (*end != '\0')) {
+            return -1;
+        }
+    }
+    if ((parsed_x >= SSD1315_WIDTH) || (parsed_y >= SSD1315_HEIGHT) ||
+        (parsed_enabled > 1U)) {
+        return -1;
+    }
+    *x = (uint8_t)parsed_x;
+    *y = (uint8_t)parsed_y;
+    *enabled = (uint8_t)parsed_enabled;
+    return 0;
+}
+
+static void set_pixel(uint8_t x, uint8_t y, uint8_t enabled)
+{
+    size_t offset = (((size_t)y / 8U) * SSD1315_WIDTH) + x;
+    uint8_t mask = (uint8_t)(1U << (y % 8U));
+
+    if (enabled != 0U) {
+        display_state.framebuffer[offset] |= mask;
+    } else {
+        display_state.framebuffer[offset] &= (uint8_t)~mask;
+    }
+}
+
 static int display_control(const char *operation, const char *value,
                            void *context)
 {
@@ -230,6 +289,23 @@ static int display_control(const char *operation, const char *value,
         display_state.cursor_y = 0U;
         return (refresh_display() == MINIOS_MODULE_OK) ? OS_DEVICE_OK
                                                         : OS_DEVICE_ERROR;
+    }
+    if (strcmp(operation, "frame-clear") == 0) {
+        memset(display_state.framebuffer, 0, sizeof(display_state.framebuffer));
+        display_state.cursor_x = 0U;
+        display_state.cursor_y = 0U;
+        return OS_DEVICE_OK;
+    }
+    if (strcmp(operation, "pixel") == 0) {
+        uint8_t x;
+        uint8_t y;
+        uint8_t enabled;
+
+        if (parse_pixel(value, &x, &y, &enabled) != 0) {
+            return OS_DEVICE_INVALID_ARGUMENT;
+        }
+        set_pixel(x, y, enabled);
+        return OS_DEVICE_OK;
     }
     if (strcmp(operation, "newline") == 0) {
         draw_character('\n');

@@ -228,6 +228,20 @@ O exemplo fornecido é compilado com:
     -Output .\hello_elf.elf
 ```
 
+O segundo exemplo anima uma bola num OLED SSD1315 através da API pública do
+Device Manager:
+
+```powershell
+.\tools\elf\build-elf-app.ps1 `
+    -Source .\tools\elf\examples\ssd1315_ball.c `
+    -Output .\ssd1315_ball.elf
+```
+
+Carregue o resultado para `/bin/ssd1315_ball.elf` pela WebShell. No MiniOS,
+inicialize I²C, carregue o módulo `ssd1315` e execute o ELF. O exemplo usa
+`frame-clear`, vários `pixel` e um único `refresh` por frame, e verifica
+`os_app_should_stop()` para suportar `kill` cooperativo.
+
 A aplicação deve exportar:
 
 ```c
@@ -405,7 +419,23 @@ both the CMake source and C registration. Long-running applications must check
 
 ### Building an external ELF application
 
-Use `tools/elf/build-elf-app.ps1`. The application exports
+Use `tools/elf/build-elf-app.ps1`. Two examples are provided:
+
+```powershell
+.\tools\elf\build-elf-app.ps1 `
+    -Source .\tools\elf\examples\hello_elf.c `
+    -Output .\hello_elf.elf
+
+.\tools\elf\build-elf-app.ps1 `
+    -Source .\tools\elf\examples\ssd1315_ball.c `
+    -Output .\ssd1315_ball.elf
+```
+
+The second example animates a bouncing ball on the SSD1315 through the public
+Device Manager API. It batches `frame-clear` and `pixel` operations before one
+`refresh` per frame, and checks `os_app_should_stop()` for cooperative `kill`.
+
+An application exports
 `minios_app_main(int argc, char **argv)` and imports only approved `minios.h`
 symbols. Supported images are ELF32 `ET_DYN`, RV32IMC, at most 32 KiB, without
 libraries, constructors, or TLS, and with a restricted relocation set. ELF
