@@ -39,7 +39,7 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
       mix-blend-mode: screen;
     }
-    button, input { font: inherit; }
+    button, input, textarea { font: inherit; }
     button { cursor: pointer; }
     .app { width: min(1540px, 100%); margin: auto; padding: 22px; }
     header {
@@ -85,13 +85,17 @@
       font-size: 12px;
       font-weight: 700;
       letter-spacing: .04em;
-      transition: transform .12s, background .12s;
+      transition: background .12s, border-color .12s, color .12s;
     }
-    button:hover { transform: translate(-2px,-2px); box-shadow: 3px 3px 0 var(--orange); }
-    button:active { transform: none; box-shadow: none; }
+    button:not(:disabled):hover { background: #f4faf6; border-color: var(--orange); box-shadow: none; }
+    button:not(:disabled):active { background: #cbd8d0; box-shadow: none; }
     button:disabled { cursor: not-allowed; opacity: .38; transform: none; box-shadow: none; }
     button.secondary { background: #12191c; color: var(--ink); border-color: var(--line); }
+    button.secondary:not(:disabled):hover { background: rgba(255,107,53,.1); color: var(--orange); border-color: var(--orange); }
+    button.secondary:not(:disabled):active { background: rgba(255,107,53,.18); }
     button.danger { background: var(--danger); border-color: var(--danger); }
+    button.danger:not(:disabled):hover { background: #e05a50; color: #fff; border-color: #ff8a7f; }
+    button.danger:not(:disabled):active { background: #b93d35; }
     .statusbar {
       display: flex;
       flex-wrap: wrap;
@@ -133,7 +137,7 @@
     .tools button { padding: 7px 9px; }
     .crumbs { display: flex; align-items: center; flex-wrap: wrap; padding: 10px 13px; gap: 3px; border-bottom: 1px solid var(--line); min-height: 44px; }
     .crumbs button { border: 0; padding: 3px 5px; color: var(--green); background: transparent; box-shadow: none; }
-    .crumbs button:hover { color: var(--orange); transform: none; }
+    .crumbs button:hover { color: var(--orange); background: transparent; transform: none; }
     .files { width: 100%; border-collapse: collapse; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
     th { text-align: left; font-size: 9px; letter-spacing: .12em; color: var(--muted); padding: 9px 13px; border-bottom: 1px solid var(--line); }
     td { padding: 10px 13px; border-bottom: 1px solid rgba(45,55,53,.72); }
@@ -148,7 +152,16 @@
     .glyph.dir::before { content: ""; position: absolute; width: 10px; height: 4px; left: -1px; top: -5px; border: 1px solid currentColor; border-bottom: 0; }
     .glyph.file { color: var(--orange); width: 15px; height: 20px; }
     .row-actions { width: 1%; white-space: nowrap; text-align: right; }
-    .row-actions button { padding: 4px 7px; font-size: 10px; }
+    .row-actions button {
+      width: 24px;
+      height: 24px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0;
+      font-size: 10px;
+      line-height: 1;
+      vertical-align: middle;
+    }
     .row-actions button + button { margin-left: 5px; }
     .empty { padding: 48px 20px; text-align: center; color: var(--muted); font-style: italic; }
     .terminal-wrap { background: var(--terminal); min-height: calc(100vh - 249px); padding: 14px; position: relative; overflow: hidden; }
@@ -192,6 +205,62 @@
     .copyright a { color: var(--green); text-decoration: none; }
     .copyright a:hover { color: var(--orange); text-decoration: underline; }
     .drop-active { outline: 4px dashed var(--orange); outline-offset: -10px; }
+    .editor-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3,6,7,.82);
+      backdrop-filter: blur(5px);
+    }
+    .editor-overlay[hidden] { display: none; }
+    .editor-dialog {
+      width: min(1040px, 100%);
+      height: min(780px, calc(100vh - 48px));
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--orange);
+      box-shadow: 16px 16px 0 rgba(0,0,0,.48);
+      animation: enter .18s ease-out both;
+    }
+    .editor-head, .editor-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+    }
+    .editor-head { border-bottom: 1px solid var(--line); }
+    .editor-title { min-width: 130px; font-size: 20px; font-style: italic; }
+    .editor-name { flex: 1; min-width: 0; }
+    .editor-name[readonly] { color: var(--green); border-bottom-color: var(--line); }
+    #editorText {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      resize: none;
+      border: 0;
+      outline: none;
+      padding: 18px;
+      color: var(--terminal-ink);
+      caret-color: var(--orange);
+      background:
+        repeating-linear-gradient(0deg, transparent 0 20px, rgba(104,224,160,.025) 21px),
+        var(--terminal);
+      font: 13px/21px "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
+      tab-size: 4;
+      white-space: pre;
+    }
+    .editor-foot {
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font: 10px "Cascadia Code", Consolas, monospace;
+    }
+    .editor-actions { display: flex; gap: 7px; }
     .toast {
       position: fixed;
       right: 24px;
@@ -222,6 +291,11 @@
       .connection { grid-template-columns: 1fr; }
       .connection label:nth-child(3) { grid-column: auto; }
       .hide-small { display: none; }
+      .editor-overlay { padding: 10px; }
+      .editor-dialog { height: calc(100vh - 20px); }
+      .editor-head { align-items: stretch; flex-direction: column; }
+      .editor-title { min-width: 0; }
+      .editor-foot { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
@@ -266,6 +340,7 @@
         <div class="panel-head">
           <div><span class="panel-index">02 /</span> <span class="panel-title">Filesystem</span></div>
           <div class="tools">
+            <button class="secondary" id="newFile">+ FILE</button>
             <button class="secondary" id="mkdir">+ FOLDER</button>
             <button class="secondary" id="upload">↑ UPLOAD</button>
             <button class="secondary" id="refresh">↻</button>
@@ -280,6 +355,23 @@
       Copyright &copy; 2026 <a href="https://www.joaquim.org" target="_blank" rel="noopener noreferrer">joaquim.org</a>
     </footer>
   </main>
+  <div class="editor-overlay" id="editorOverlay" hidden>
+    <section class="editor-dialog" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+      <div class="editor-head">
+        <div class="editor-title" id="editorTitle"><span class="panel-index">EDIT /</span> Text file</div>
+        <input class="editor-name" id="editorName" maxlength="64" aria-label="File name" spellcheck="false">
+        <button class="secondary" id="editorClose" aria-label="Close editor">×</button>
+      </div>
+      <textarea id="editorText" aria-label="File contents" spellcheck="false"></textarea>
+      <div class="editor-foot">
+        <span id="editorStatus">0 lines · 0 B</span>
+        <div class="editor-actions">
+          <button class="secondary" id="editorCancel">CANCEL</button>
+          <button id="editorSave">SAVE · CTRL-S</button>
+        </div>
+      </div>
+    </section>
+  </div>
   <div class="toast" id="toast"></div>
 
   <script>
@@ -287,7 +379,9 @@
     "use strict";
     var $ = function (selector) { return document.querySelector(selector); };
     var host = $("#host"), port = $("#port"), token = $("#token");
-    var socket = null, currentPath = "/", toastTimer;
+    var socket = null, currentPath = "/", currentEntries = [], toastTimer;
+    var editorPath = "", editorDirectory = "/", editorOriginal = "";
+    var editorInitialName = "", editorIsNew = false, editorSaving = false;
 
     function notify(message) {
       var node = $("#toast");
@@ -322,6 +416,118 @@
       if (value < 1024) return value + " B";
       if (value < 1048576) return (value / 1024).toFixed(1) + " KiB";
       return (value / 1048576).toFixed(1) + " MiB";
+    }
+
+    function editorIsDirty() {
+      return editorIsNew || $("#editorText").value !== editorOriginal ||
+             $("#editorName").value !== editorInitialName;
+    }
+    function updateEditorStatus(message) {
+      var text = $("#editorText").value;
+      var lines = text.length ? text.split("\n").length : 1;
+      var bytes = new TextEncoder().encode(text).length;
+      $("#editorStatus").textContent = (message ? message + " · " : "") +
+        lines + (lines === 1 ? " line · " : " lines · ") + formatBytes(bytes);
+    }
+    function showEditor(name, text, isNew, path, directory) {
+      editorPath = path || "";
+      editorDirectory = directory;
+      editorOriginal = text;
+      editorInitialName = name;
+      editorIsNew = isNew;
+      $("#editorName").value = name;
+      $("#editorName").readOnly = !isNew;
+      $("#editorText").value = text;
+      $("#editorOverlay").hidden = false;
+      updateEditorStatus(isNew ? "NEW" : path);
+      if (isNew) {
+        $("#editorName").focus();
+        $("#editorName").select();
+      } else {
+        $("#editorText").focus();
+      }
+    }
+    function closeEditor(force) {
+      if (editorSaving) return;
+      if (!force && editorIsDirty() && !confirm("Discard unsaved changes?")) return;
+      $("#editorOverlay").hidden = true;
+      editorPath = "";
+    }
+    function validFileName(name) {
+      return name.length > 0 && name.length <= 64 && name !== "." && name !== ".." &&
+             name.indexOf("/") < 0 && name.indexOf("\\") < 0 &&
+             !/[\x00-\x1f]/.test(name);
+    }
+    async function openTextEditor(path, name) {
+      if (isProtectedPath(path)) {
+        notify("This namespace is read-only.");
+        return;
+      }
+      try {
+        var response = await api("/api/fs/download?path=" + encodePath(path));
+        var data = new Uint8Array(await response.arrayBuffer());
+        if (data.length > 65536) throw new Error("file exceeds the 64 KiB editor limit");
+        for (var index = 0; index < data.length; index++) {
+          if (data[index] === 0) throw new Error("binary files cannot be edited");
+        }
+        var text;
+        try { text = new TextDecoder("utf-8", { fatal: true }).decode(data); }
+        catch (_) { throw new Error("file is not valid UTF-8 text"); }
+        showEditor(name, text, false, path, currentPath);
+      } catch (error) { notify("Editor: " + error.message); }
+    }
+    function createTextFile() {
+      if (isProtectedPath(currentPath)) {
+        notify("This namespace is read-only.");
+        return;
+      }
+      showEditor("untitled.txt", "", true, "", currentPath);
+    }
+    async function saveTextFile() {
+      if (editorSaving) return;
+      var name = $("#editorName").value.trim();
+      if (!validFileName(name)) {
+        notify("Use a valid file name of at most 64 characters.");
+        $("#editorName").focus();
+        return;
+      }
+      var path = editorIsNew ? joinPath(editorDirectory, name) : editorPath;
+      if (path.length >= 128 || isProtectedPath(path)) {
+        notify(isProtectedPath(path) ? "This namespace is read-only." : "The file path is too long.");
+        return;
+      }
+      if (editorIsNew && currentEntries.some(function (entry) { return entry.name === name; }) &&
+          !confirm('Replace existing entry "' + name + '"?')) return;
+      var text = $("#editorText").value;
+      var bytes = new TextEncoder().encode(text);
+      if (bytes.length > 65536) {
+        notify("The editor limit is 64 KiB.");
+        return;
+      }
+      editorSaving = true;
+      $("#editorSave").disabled = true;
+      updateEditorStatus("SAVING");
+      try {
+        await api("/api/fs/upload?path=" + encodePath(path), {
+          method: "PUT",
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          body: bytes
+        });
+        editorPath = path;
+        editorOriginal = text;
+        editorInitialName = name;
+        editorIsNew = false;
+        $("#editorName").readOnly = true;
+        updateEditorStatus("SAVED");
+        notify("Saved: " + path);
+        await loadDirectory(editorDirectory);
+      } catch (error) {
+        updateEditorStatus("SAVE FAILED");
+        notify("Save: " + error.message);
+      } finally {
+        editorSaving = false;
+        $("#editorSave").disabled = false;
+      }
     }
 
     function drawCrumbs() {
@@ -373,7 +579,8 @@
         if (!entry.virtual) {
           open.onclick = function () {
             if (entry.directory) loadDirectory(fullPath);
-            else downloadFile(fullPath, entry.name);
+            else if (isProtectedPath(fullPath)) downloadFile(fullPath, entry.name);
+            else openTextEditor(fullPath, entry.name);
           };
         }
         wrap.append(glyph, open);
@@ -383,6 +590,14 @@
         var actionCell = document.createElement("td");
         actionCell.className = "row-actions";
         if (!entry.directory && !entry.virtual) {
+          if (!isProtectedPath(fullPath)) {
+            var edit = document.createElement("button");
+            edit.className = "secondary";
+            edit.textContent = "✎";
+            edit.title = "Edit text";
+            edit.onclick = function () { openTextEditor(fullPath, entry.name); };
+            actionCell.appendChild(edit);
+          }
           var download = document.createElement("button");
           download.className = "secondary";
           download.textContent = "↓";
@@ -411,6 +626,7 @@
     }
     function updateFileActions() {
       var protectedPath = isProtectedPath(currentPath);
+      $("#newFile").disabled = protectedPath;
       $("#mkdir").disabled = protectedPath;
       $("#upload").disabled = protectedPath;
       $("#filePicker").disabled = protectedPath;
@@ -420,9 +636,10 @@
       try {
         var response = await api("/api/fs/list?path=" + encodePath(path));
         currentPath = path;
+        currentEntries = await response.json();
         updateFileActions();
         drawCrumbs();
-        renderFiles(await response.json());
+        renderFiles(currentEntries);
       } catch (error) { notify("Filesystem: " + error.message); }
     }
     async function downloadFile(path, name) {
@@ -570,6 +787,7 @@
 
     $("#connect").onclick = connect;
     $("#refresh").onclick = function () { loadDirectory(currentPath); };
+    $("#newFile").onclick = createTextFile;
     $("#upload").onclick = function () { $("#filePicker").click(); };
     $("#filePicker").onchange = function () { uploadFiles(this.files); this.value = ""; };
     $("#mkdir").onclick = async function () {
@@ -581,6 +799,41 @@
         await loadDirectory(currentPath);
       } catch (error) { notify("Create folder: " + error.message); }
     };
+    $("#editorSave").onclick = saveTextFile;
+    $("#editorCancel").onclick = function () { closeEditor(false); };
+    $("#editorClose").onclick = function () { closeEditor(false); };
+    $("#editorOverlay").onclick = function (event) {
+      if (event.target === this) closeEditor(false);
+    };
+    $("#editorText").oninput = function () { updateEditorStatus(editorIsDirty() ? "MODIFIED" : ""); };
+    $("#editorName").oninput = function () { updateEditorStatus(editorIsDirty() ? "MODIFIED" : "NEW"); };
+    $("#editorName").onkeydown = function (event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveTextFile();
+      } else if (event.key === "Enter") { event.preventDefault(); $("#editorText").focus(); }
+      else if (event.key === "Escape") { event.preventDefault(); closeEditor(false); }
+    };
+    $("#editorText").onkeydown = function (event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveTextFile();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        closeEditor(false);
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        var start = this.selectionStart, end = this.selectionEnd;
+        this.setRangeText("    ", start, end, "end");
+        updateEditorStatus("MODIFIED");
+      }
+    };
+    window.addEventListener("beforeunload", function (event) {
+      if (!$("#editorOverlay").hidden && editorIsDirty()) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
     $("#clearTerminal").onclick = function () { terminal.clear(); $("#terminal").focus(); };
     document.querySelectorAll("[data-send]").forEach(function (button) {
       button.onclick = function () { send(button.getAttribute("data-send")); $("#terminal").focus(); };

@@ -126,6 +126,14 @@ Use condições `CONFIG_MINIOS_*` no `CMakeLists.txt` para não compilar sources
 desativados. Preserve o desacoplamento: headers públicos não devem expor tipos
 internos do ESP-IDF ou FreeRTOS sem necessidade.
 
+#### WebShell externo
+
+A interface permanece no ficheiro único `tools/webshell/minios-webshell.html`.
+O editor de texto usa `GET /api/fs/download` para abrir UTF-8 e
+`PUT /api/fs/upload` para criar ou substituir o ficheiro. O firmware limita o
+corpo através de `CONFIG_MINIOS_WEB_MAX_UPLOAD_SIZE`; as mesmas validações do
+filesystem impedem escrita em `/dev` e `/modules`.
+
 ### Adicionar um comando
 
 Crie um ficheiro em `components/minios_shell/commands/`. Um comando contém um
@@ -361,6 +369,14 @@ idf_component_register(
 Add project options to `main/Kconfig.projbuild`, conditionally select sources
 with `CONFIG_MINIOS_*`, and avoid exposing ESP-IDF or FreeRTOS implementation
 types through public MiniOS headers.
+
+#### External WebShell
+
+The UI remains the single `tools/webshell/minios-webshell.html` file. Its text
+editor opens UTF-8 through `GET /api/fs/download` and creates or replaces files
+through `PUT /api/fs/upload`. Firmware bounds request bodies with
+`CONFIG_MINIOS_WEB_MAX_UPLOAD_SIZE`; filesystem validation still rejects writes
+to `/dev` and `/modules`.
 
 ### Adding a command
 

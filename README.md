@@ -61,7 +61,11 @@ configurado. Se o browser bloquear pedidos iniciados por `file://`, execute:
 ```
 
 A WebShell inclui terminal ANSI e explorador LittleFS com navegação, upload,
-download, criação de pastas e remoção. `/dev` lista os dispositivos e
+download, criação de pastas e remoção. `+ FILE` cria um ficheiro de texto;
+clique no nome ou no botão de edição para abrir um ficheiro UTF-8 existente.
+`Ctrl-S` guarda, `Esc` fecha e Tab insere quatro espaços. O tamanho aceite
+depende de `MINIOS_WEB_MAX_UPLOAD_SIZE`, com um limite máximo de 64 KiB no
+editor. `/dev` lista os dispositivos e
 `/modules` lista os módulos e respetivo estado; ambos são read-only. Apenas uma
 sessão WebSocket pode estar ativa. HTTP/WS não é encriptado e deve permanecer
 numa rede de confiança.
@@ -395,6 +399,11 @@ blocked, run `.\tools\webshell\serve-webshell.ps1`. The explorer shows devices
 under read-only `/dev` and modules with their status under read-only
 `/modules`. TCP and HTTP/WS are not encrypted and must only be used on trusted
 networks.
+
+Use `+ FILE` to create a text file, or select a file name/edit button to open
+existing UTF-8 text. `Ctrl-S` saves, `Esc` closes, and Tab inserts four spaces.
+The configured `MINIOS_WEB_MAX_UPLOAD_SIZE` applies, with a 64 KiB editor
+maximum. Creating and editing remain disabled in `/dev` and `/modules`.
 
 ![MiniOS WebShell with interactive shell and file explorer](img/web_shell.png)
 
