@@ -4,13 +4,16 @@
 
 #include "minios_app.h"
 #include "minios_elf.h"
+#include "sdkconfig.h"
 
+#if CONFIG_MINIOS_ENABLE_ELF_LOADER
 static int has_elf_extension(const char *path)
 {
     size_t length = strlen(path);
 
     return (length > 4U) && (strcmp(path + length - 4U, ".elf") == 0);
 }
+#endif
 
 static int run_script_command(int argc, char **argv, int source)
 {
@@ -54,6 +57,7 @@ static int cmd_run(int argc, char **argv)
                             (unsigned int)pid);
         return 0;
     }
+#if CONFIG_MINIOS_ENABLE_ELF_LOADER
     if (has_elf_extension(argv[1])) {
         result = minios_elf_run(argv[1], argc - 2,
                                 (argc > 2) ? &argv[2] : NULL, &pid);
@@ -66,6 +70,7 @@ static int cmd_run(int argc, char **argv)
                             (unsigned int)pid);
         return 0;
     }
+#endif
     return run_script_command(argc, argv, 0);
 }
 

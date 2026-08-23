@@ -13,7 +13,6 @@ set(MINIOS_SHELL_SOURCES
     "commands/cmd_device.c"
     "commands/cmd_echo.c"
     "commands/cmd_edit.c"
-    "commands/cmd_elf.c"
     "commands/cmd_help.c"
     "commands/cmd_gpio.c"
     "commands/cmd_i2c.c"
@@ -30,6 +29,10 @@ set(MINIOS_SHELL_SOURCES
     "commands/cmd_uptime.c"
     "commands/cmd_version.c"
 )
+
+if(CONFIG_MINIOS_ENABLE_ELF_LOADER)
+    list(APPEND MINIOS_SHELL_SOURCES "commands/cmd_elf.c")
+endif()
 
 if(CONFIG_MINIOS_ENABLE_NETWORK)
     list(APPEND MINIOS_SHELL_SOURCES

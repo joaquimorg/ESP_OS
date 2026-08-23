@@ -62,7 +62,9 @@ static int register_builtin_commands(void)
         (minios_cmd_cat_register() != 0) ||
         (minios_cmd_echo_register() != 0) ||
         (minios_cmd_edit_register() != 0) ||
+#if CONFIG_MINIOS_ENABLE_ELF_LOADER
         (minios_cmd_elf_register() != 0) ||
+#endif
         (minios_cmd_mkdir_register() != 0) ||
         (minios_cmd_rm_register() != 0) ||
         (minios_cmd_run_register() != 0) ||

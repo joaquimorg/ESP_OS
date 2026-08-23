@@ -1,0 +1,128 @@
+menu "MiniOS"
+
+    menu "Interfaces"
+
+        config MINIOS_ENABLE_LOCAL_CONSOLE
+            bool "Enable local UART/USB console"
+            default y
+            help
+                Include the local console connected to the ESP-IDF standard
+                input and output. Disable it for a network-only headless build.
+
+        config MINIOS_ENABLE_NETWORK
+            bool "Enable Wi-Fi networking"
+            depends on SOC_WIFI_SUPPORTED
+            default y
+            help
+                Include Wi-Fi station mode, IPv4/DNS support, ICMP ping,
+                the wifi/ifconfig/ping shell commands, and /dev/wifi0.
+
+        config MINIOS_ENABLE_REMOTE_CONSOLE
+            bool "Enable raw TCP shell"
+            depends on MINIOS_ENABLE_NETWORK
+            default y
+            help
+                Start the raw TCP/Telnet-compatible shell server. This
+                interface has no authentication or encryption.
+
+        config MINIOS_REMOTE_CONSOLE_PORT
+            int "Raw TCP shell port"
+            depends on MINIOS_ENABLE_REMOTE_CONSOLE
+            range 1 65535
+            default 2323
+
+        config MINIOS_REMOTE_CONSOLE_STACK_SIZE
+            int "Raw TCP shell task stack size"
+            depends on MINIOS_ENABLE_REMOTE_CONSOLE
+            range 4096 16384
+            default 5120
+
+        config MINIOS_ENABLE_WEB_SERVICE
+            bool "Enable external WebShell service"
+            depends on MINIOS_ENABLE_NETWORK
+            select HTTPD_WS_SUPPORT
+            select HTTPD_WS_PRE_HANDSHAKE_CB_SUPPORT
+            default y
+            help
+                Include only the HTTP filesystem API and WebSocket shell
+                transport. The HTML user interface remains on the PC and is
+                not stored in the ESP32 firmware or filesystem.
+
+        config MINIOS_WEB_PORT
+            int "WebShell HTTP/WebSocket port"
+            depends on MINIOS_ENABLE_WEB_SERVICE
+            range 1 65535
+            default 8080
+
+        config MINIOS_WEB_STACK_SIZE
+            int "WebShell server task stack size"
+            depends on MINIOS_ENABLE_WEB_SERVICE
+            range 4096 16384
+            default 6144
+
+        config MINIOS_WEB_MAX_UPLOAD_SIZE
+            int "Maximum WebShell upload size"
+            depends on MINIOS_ENABLE_WEB_SERVICE
+            range 1024 65536
+            default 32768
+
+        config MINIOS_WEB_ACCESS_TOKEN
+            string "WebShell access token (empty disables authentication)"
+            depends on MINIOS_ENABLE_WEB_SERVICE
+            default ""
+            help
+                Requests must provide this value when it is non-empty. Keep
+                the value at 127 characters or fewer and keep the service on
+                a trusted network; transport is not encrypted.
+
+    endmenu
+
+    menu "Components"
+
+        config MINIOS_ENABLE_BUILTIN_APPS
+            bool "Enable built-in applications"
+            default y
+            help
+                Include applications compiled and linked into the firmware.
+                The application manager remains available for external ELF
+                applications when all built-in applications are disabled.
+
+        menu "Built-in applications"
+            depends on MINIOS_ENABLE_BUILTIN_APPS
+
+            config MINIOS_ENABLE_APP_HELLO
+                bool "Include hello application"
+                default y
+
+            config MINIOS_ENABLE_APP_COUNTER
+                bool "Include counter application"
+                default y
+
+            config MINIOS_ENABLE_APP_WELCOME
+                bool "Include welcome application"
+                default y
+
+        endmenu
+
+        config MINIOS_ENABLE_ELF_LOADER
+            bool "Enable external ELF applications"
+            default y
+            help
+                Include the Milestone 11 ELF application loader and shell
+                commands. This loads applications, not persistent device
+                modules; external modules require a separate module ABI.
+
+        config MINIOS_ENABLE_INTERNAL_MODULES
+            bool "Enable built-in device modules"
+            default y
+            help
+                Include modules compiled and linked into the firmware.
+
+        config MINIOS_ENABLE_SSD1315_MODULE
+            bool "Include SSD1315 OLED module"
+            depends on MINIOS_ENABLE_INTERNAL_MODULES
+            default y
+
+    endmenu
+
+endmenu

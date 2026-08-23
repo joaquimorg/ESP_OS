@@ -14,6 +14,7 @@
 #include "minios_remote.h"
 #include "minios_shell.h"
 #include "minios_version.h"
+#include "minios_web.h"
 #include "sdkconfig.h"
 
 #define MINIOS_STRINGIFY_VALUE(value) #value
@@ -120,6 +121,16 @@ void minios_kernel_start(void)
     } else {
         minios_console_write_text(&console,
                                   "[WARN] Remote console unavailable\r\n\r\n");
+    }
+#endif
+#if CONFIG_MINIOS_ENABLE_WEB_SERVICE
+    if (minios_web_start() == MINIOS_WEB_OK) {
+        minios_console_write_text(&console, "[ OK ] WebShell service port "
+                                  MINIOS_STRINGIFY(CONFIG_MINIOS_WEB_PORT)
+                                  "\r\n\r\n");
+    } else {
+        minios_console_write_text(&console,
+                                  "[WARN] WebShell service unavailable\r\n\r\n");
     }
 #endif
     minios_shell_run();

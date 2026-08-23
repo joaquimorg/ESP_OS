@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "sdkconfig.h"
 
 #define APP_TASK_STACK_SIZE 3072U
 #define APP_TASK_PRIORITY (tskIDLE_PRIORITY + 1U)
@@ -182,11 +183,21 @@ int os_app_init(void)
         }
     }
 
-    if ((os_app_register(minios_app_hello_descriptor()) != OS_APP_OK) ||
-        (os_app_register(minios_app_counter_descriptor()) != OS_APP_OK) ||
-        (os_app_register(minios_app_welcome_descriptor()) != OS_APP_OK)) {
+#if CONFIG_MINIOS_ENABLE_APP_HELLO
+    if (os_app_register(minios_app_hello_descriptor()) != OS_APP_OK) {
         return OS_APP_ERROR;
     }
+#endif
+#if CONFIG_MINIOS_ENABLE_APP_COUNTER
+    if (os_app_register(minios_app_counter_descriptor()) != OS_APP_OK) {
+        return OS_APP_ERROR;
+    }
+#endif
+#if CONFIG_MINIOS_ENABLE_APP_WELCOME
+    if (os_app_register(minios_app_welcome_descriptor()) != OS_APP_OK) {
+        return OS_APP_ERROR;
+    }
+#endif
     return OS_APP_OK;
 }
 

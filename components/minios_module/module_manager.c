@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "module_internal.h"
+#include "sdkconfig.h"
 
 #define MINIOS_MODULE_MAX 8U
 
@@ -36,12 +37,14 @@ int minios_module_init(void)
 {
     module_count = 0U;
     module_initialized = 1;
+#if CONFIG_MINIOS_ENABLE_SSD1315_MODULE
     if (minios_module_register(minios_module_ssd1315_descriptor()) !=
         MINIOS_MODULE_OK) {
         module_count = 0U;
         module_initialized = 0;
         return MINIOS_MODULE_ERROR;
     }
+#endif
     return MINIOS_MODULE_OK;
 }
 

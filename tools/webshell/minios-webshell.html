@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MiniOS Web Console</title>
+  <style>
+    :root {
+      --ink: #e3e9e4;
+      --paper: #080b0d;
+      --panel: #101519;
+      --grid: rgba(138,164,151,.055);
+      --orange: #ff6b35;
+      --green: #68e0a0;
+      --muted: #84908a;
+      --line: #2d3735;
+      --terminal: #050807;
+      --terminal-ink: #bff7d3;
+      --danger: #cf493f;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .24;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+      mix-blend-mode: screen;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .app { width: min(1540px, 100%); margin: auto; padding: 22px; }
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: end;
+      border-bottom: 3px solid var(--ink);
+      padding: 8px 0 16px;
+      animation: enter .45s ease-out both;
+    }
+    .eyebrow, .label, th, .status, .button, button, input {
+      font-family: "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
+    }
+    .eyebrow { color: var(--orange); letter-spacing: .17em; font-size: 12px; font-weight: 700; }
+    h1 { margin: 4px 0 0; font-size: clamp(34px, 5vw, 72px); font-weight: 400; line-height: .9; letter-spacing: -.055em; }
+    h1 span { font-style: italic; color: var(--green); }
+    .connection {
+      min-width: min(560px, 48vw);
+      display: grid;
+      grid-template-columns: 1fr 90px 1fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+    label { display: grid; gap: 5px; }
+    .label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-bottom: 2px solid var(--ink);
+      color: var(--ink);
+      caret-color: var(--green);
+      background: rgba(255,255,255,.035);
+      padding: 10px 11px;
+      outline: none;
+    }
+    input:focus { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(230,80,30,.14); }
+    .button, button {
+      border: 1px solid var(--ink);
+      background: #dce6df;
+      color: #090d0f;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      transition: transform .12s, background .12s;
+    }
+    button:hover { transform: translate(-2px,-2px); box-shadow: 3px 3px 0 var(--orange); }
+    button:active { transform: none; box-shadow: none; }
+    button:disabled { cursor: not-allowed; opacity: .38; transform: none; box-shadow: none; }
+    button.secondary { background: #12191c; color: var(--ink); border-color: var(--line); }
+    button.danger { background: var(--danger); border-color: var(--danger); }
+    .statusbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      min-height: 42px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .lamp { width: 9px; height: 9px; display: inline-block; border-radius: 50%; background: #59635f; margin-right: 6px; box-shadow: 0 0 0 3px rgba(255,255,255,.04); }
+    .connected .lamp { background: #4eae72; box-shadow: 0 0 10px #4eae72; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(500px, 1.16fr) minmax(390px, .84fr);
+      gap: 18px;
+      min-height: calc(100vh - 190px);
+    }
+    .panel {
+      background: rgba(16,21,25,.94);
+      border: 1px solid var(--line);
+      box-shadow: 8px 8px 0 rgba(0,0,0,.34);
+      min-width: 0;
+      animation: enter .45s ease-out both;
+    }
+    .panel:nth-child(2) { animation-delay: .08s; }
+    .panel-head {
+      min-height: 57px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 13px;
+    }
+    .panel-title { font-size: 20px; font-style: italic; }
+    .panel-index { color: var(--orange); font-family: "Cascadia Code", Consolas, monospace; font-size: 11px; }
+    .tools { display: flex; gap: 6px; }
+    .tools button { padding: 7px 9px; }
+    .crumbs { display: flex; align-items: center; flex-wrap: wrap; padding: 10px 13px; gap: 3px; border-bottom: 1px solid var(--line); min-height: 44px; }
+    .crumbs button { border: 0; padding: 3px 5px; color: var(--green); background: transparent; box-shadow: none; }
+    .crumbs button:hover { color: var(--orange); transform: none; }
+    .files { width: 100%; border-collapse: collapse; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
+    th { text-align: left; font-size: 9px; letter-spacing: .12em; color: var(--muted); padding: 9px 13px; border-bottom: 1px solid var(--line); }
+    td { padding: 10px 13px; border-bottom: 1px solid rgba(45,55,53,.72); }
+    tbody tr { transition: background .12s; }
+    tbody tr:hover { background: rgba(230,80,30,.08); }
+    .name-cell { display: flex; align-items: center; gap: 9px; max-width: 400px; }
+    .file-name { border: 0; box-shadow: none; background: none; color: var(--ink); padding: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+    .file-name:hover { color: var(--orange); transform: none; box-shadow: none; }
+    .file-name.virtual { cursor: default; color: var(--ink); }
+    .file-name.virtual:hover { color: var(--ink); }
+    .glyph { width: 23px; height: 18px; flex: 0 0 auto; border: 1px solid currentColor; position: relative; color: var(--green); }
+    .glyph.dir::before { content: ""; position: absolute; width: 10px; height: 4px; left: -1px; top: -5px; border: 1px solid currentColor; border-bottom: 0; }
+    .glyph.file { color: var(--orange); width: 15px; height: 20px; }
+    .row-actions { width: 1%; white-space: nowrap; text-align: right; }
+    .row-actions button { padding: 4px 7px; font-size: 10px; }
+    .row-actions button + button { margin-left: 5px; }
+    .empty { padding: 48px 20px; text-align: center; color: var(--muted); font-style: italic; }
+    .terminal-wrap { background: var(--terminal); min-height: calc(100vh - 249px); padding: 14px; position: relative; overflow: hidden; }
+    .terminal-wrap::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(199,240,174,.025) 4px);
+    }
+    #terminal {
+      position: relative;
+      margin: 0;
+      min-height: calc(100vh - 278px);
+      overflow: auto;
+      color: var(--terminal-ink);
+      text-shadow: 0 0 8px rgba(154,255,133,.22);
+      outline: none;
+      font: 13px/1.34 "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
+      white-space: pre;
+      tab-size: 4;
+    }
+    #terminal:focus { color: #e0ffc9; }
+    .terminal-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #78916e;
+      background: var(--terminal);
+      border-top: 1px solid #33402f;
+      padding: 8px 14px;
+      font: 10px "Cascadia Code", Consolas, monospace;
+    }
+    .copyright {
+      padding: 18px 0 2px;
+      color: var(--muted);
+      text-align: center;
+      font: 10px "Cascadia Code", Consolas, monospace;
+      letter-spacing: .06em;
+    }
+    .copyright a { color: var(--green); text-decoration: none; }
+    .copyright a:hover { color: var(--orange); text-decoration: underline; }
+    .drop-active { outline: 4px dashed var(--orange); outline-offset: -10px; }
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      max-width: 420px;
+      padding: 13px 16px;
+      color: var(--ink);
+      background: #151c20;
+      border-left: 5px solid var(--orange);
+      font: 12px/1.45 "Cascadia Code", Consolas, monospace;
+      box-shadow: 7px 7px 0 rgba(230,80,30,.25);
+      transform: translateY(140%);
+      opacity: 0;
+      transition: .22s ease;
+      z-index: 20;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    @keyframes enter { from { opacity: 0; transform: translateY(12px); } }
+    @media (max-width: 980px) {
+      header { grid-template-columns: 1fr; }
+      .connection { min-width: 0; width: 100%; grid-template-columns: 1fr 80px; }
+      .connection label:nth-child(3) { grid-column: 1 / -1; }
+      .workspace { grid-template-columns: 1fr; }
+      .terminal-wrap, #terminal { min-height: 520px; }
+    }
+    @media (max-width: 560px) {
+      .app { padding: 12px; }
+      .connection { grid-template-columns: 1fr; }
+      .connection label:nth-child(3) { grid-column: auto; }
+      .hide-small { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <div class="eyebrow">REMOTE SYSTEM OPERATIONS</div>
+        <h1>MiniOS <span>Web Console</span></h1>
+      </div>
+      <div class="connection">
+        <label><span class="label">Device address</span><input id="host" value="192.168.1.50" spellcheck="false"></label>
+        <label><span class="label">Port</span><input id="port" value="8080" inputmode="numeric"></label>
+        <label><span class="label">Optional token</span><input id="token" type="password" autocomplete="off"></label>
+        <button id="connect">CONNECT</button>
+      </div>
+    </header>
+
+    <div class="statusbar" id="connectionState">
+      <span><i class="lamp"></i><b id="stateText">DISCONNECTED</b></span>
+      <span id="deviceInfo">MiniOS not identified</span>
+      <span id="spaceInfo"></span>
+    </div>
+
+    <section class="workspace">
+      <article class="panel">
+        <div class="panel-head">
+          <div><span class="panel-index">01 /</span> <span class="panel-title">Interactive shell</span></div>
+          <div class="tools">
+            <button class="secondary" data-send="">CTRL-C</button>
+            <button class="secondary" data-send="">CTRL-D</button>
+            <button class="secondary" id="clearTerminal">CLEAR</button>
+          </div>
+        </div>
+        <div class="terminal-wrap">
+          <pre id="terminal" tabindex="0" aria-label="Terminal MiniOS"></pre>
+        </div>
+        <div class="terminal-foot"><span>CLICK THE TERMINAL AND TYPE</span><span>ANSI · ARROWS · PASTE</span></div>
+      </article>
+
+      <article class="panel" id="filePanel">
+        <div class="panel-head">
+          <div><span class="panel-index">02 /</span> <span class="panel-title">Filesystem</span></div>
+          <div class="tools">
+            <button class="secondary" id="mkdir">+ FOLDER</button>
+            <button class="secondary" id="upload">↑ UPLOAD</button>
+            <button class="secondary" id="refresh">↻</button>
+            <input id="filePicker" type="file" multiple hidden>
+          </div>
+        </div>
+        <nav class="crumbs" id="crumbs"></nav>
+        <div id="fileArea"><div class="empty">Connect to MiniOS to browse the filesystem.</div></div>
+      </article>
+    </section>
+    <footer class="copyright">
+      Copyright &copy; 2026 <a href="https://www.joaquim.org" target="_blank" rel="noopener noreferrer">joaquim.org</a>
+    </footer>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function () {
+    "use strict";
+    var $ = function (selector) { return document.querySelector(selector); };
+    var host = $("#host"), port = $("#port"), token = $("#token");
+    var socket = null, currentPath = "/", toastTimer;
+
+    function notify(message) {
+      var node = $("#toast");
+      node.textContent = message;
+      node.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { node.classList.remove("show"); }, 3200);
+    }
+
+    function baseUrl() {
+      return "http://" + host.value.trim() + ":" + port.value.trim();
+    }
+    function headers(extra) {
+      var result = extra || {};
+      if (token.value) result["X-MiniOS-Token"] = token.value;
+      return result;
+    }
+    async function api(path, options) {
+      options = options || {};
+      options.headers = headers(options.headers || {});
+      var response = await fetch(baseUrl() + path, options);
+      if (!response.ok) {
+        var message = response.status + " " + response.statusText;
+        try { message = (await response.json()).error || message; } catch (_) {}
+        throw new Error(message);
+      }
+      return response;
+    }
+    function encodePath(path) { return encodeURIComponent(path); }
+    function joinPath(base, name) { return base === "/" ? "/" + name : base + "/" + name; }
+    function formatBytes(value) {
+      if (value < 1024) return value + " B";
+      if (value < 1048576) return (value / 1024).toFixed(1) + " KiB";
+      return (value / 1048576).toFixed(1) + " MiB";
+    }
+
+    function drawCrumbs() {
+      var crumbs = $("#crumbs");
+      crumbs.textContent = "";
+      var root = document.createElement("button");
+      root.textContent = "root";
+      root.onclick = function () { loadDirectory("/"); };
+      crumbs.appendChild(root);
+      var path = "";
+      currentPath.split("/").filter(Boolean).forEach(function (part) {
+        crumbs.append(" / ");
+        path += "/" + part;
+        var target = path;
+        var button = document.createElement("button");
+        button.textContent = part;
+        button.onclick = function () { loadDirectory(target); };
+        crumbs.appendChild(button);
+      });
+    }
+
+    function renderFiles(entries) {
+      var area = $("#fileArea");
+      area.textContent = "";
+      if (!entries.length) {
+        area.innerHTML = '<div class="empty">This folder is empty.</div>';
+        return;
+      }
+      entries.sort(function (a, b) {
+        return Number(b.directory) - Number(a.directory) || a.name.localeCompare(b.name);
+      });
+      var table = document.createElement("table");
+      table.className = "files";
+      table.innerHTML = "<thead><tr><th>NAME</th><th>DETAILS</th><th></th></tr></thead>";
+      var body = document.createElement("tbody");
+      entries.forEach(function (entry) {
+        var fullPath = joinPath(currentPath, entry.name);
+        var row = document.createElement("tr");
+        var nameCell = document.createElement("td");
+        var wrap = document.createElement("div");
+        wrap.className = "name-cell";
+        var glyph = document.createElement("i");
+        glyph.className = "glyph " + (entry.directory ? "dir" : "file");
+        var open = document.createElement("button");
+        open.className = "file-name";
+        if (entry.virtual) open.classList.add("virtual");
+        open.textContent = entry.name;
+        open.title = fullPath;
+        if (!entry.virtual) {
+          open.onclick = function () {
+            if (entry.directory) loadDirectory(fullPath);
+            else downloadFile(fullPath, entry.name);
+          };
+        }
+        wrap.append(glyph, open);
+        nameCell.appendChild(wrap);
+        var sizeCell = document.createElement("td");
+        sizeCell.textContent = entry.virtual ? entry.detail : (entry.directory ? "—" : formatBytes(entry.size));
+        var actionCell = document.createElement("td");
+        actionCell.className = "row-actions";
+        if (!entry.directory && !entry.virtual) {
+          var download = document.createElement("button");
+          download.className = "secondary";
+          download.textContent = "↓";
+          download.title = "Download";
+          download.onclick = function () { downloadFile(fullPath, entry.name); };
+          actionCell.appendChild(download);
+        }
+        if (!entry.virtual && !isProtectedPath(fullPath)) {
+          var remove = document.createElement("button");
+          remove.className = "danger";
+          remove.textContent = "×";
+          remove.title = "Delete";
+          remove.onclick = function () { removeEntry(fullPath, entry.name); };
+          actionCell.appendChild(remove);
+        }
+        row.append(nameCell, sizeCell, actionCell);
+        body.appendChild(row);
+      });
+      table.appendChild(body);
+      area.appendChild(table);
+    }
+
+    function isProtectedPath(path) {
+      return path === "/dev" || path.indexOf("/dev/") === 0 ||
+             path === "/modules" || path.indexOf("/modules/") === 0;
+    }
+    function updateFileActions() {
+      var protectedPath = isProtectedPath(currentPath);
+      $("#mkdir").disabled = protectedPath;
+      $("#upload").disabled = protectedPath;
+      $("#filePicker").disabled = protectedPath;
+      $("#filePanel").classList.toggle("protected", protectedPath);
+    }
+    async function loadDirectory(path) {
+      try {
+        var response = await api("/api/fs/list?path=" + encodePath(path));
+        currentPath = path;
+        updateFileActions();
+        drawCrumbs();
+        renderFiles(await response.json());
+      } catch (error) { notify("Filesystem: " + error.message); }
+    }
+    async function downloadFile(path, name) {
+      try {
+        var response = await api("/api/fs/download?path=" + encodePath(path));
+        var url = URL.createObjectURL(await response.blob());
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      } catch (error) { notify("Download: " + error.message); }
+    }
+    async function removeEntry(path, name) {
+      if (isProtectedPath(path)) {
+        notify("This namespace is read-only.");
+        return;
+      }
+      if (!confirm('Delete "' + name + '"?')) return;
+      try {
+        await api("/api/fs?path=" + encodePath(path), { method: "DELETE" });
+        await loadDirectory(currentPath);
+      } catch (error) { notify("Remover: " + error.message); }
+    }
+    async function uploadFiles(files) {
+      if (isProtectedPath(currentPath)) {
+        notify("This namespace is read-only.");
+        return;
+      }
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        try {
+          await api("/api/fs/upload?path=" + encodePath(joinPath(currentPath, file.name)), {
+            method: "PUT",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: file
+          });
+          notify("Uploaded: " + file.name);
+        } catch (error) {
+          notify("Upload " + file.name + ": " + error.message);
+          break;
+        }
+      }
+      await loadDirectory(currentPath);
+    }
+
+    function Terminal(element, columns, rows) {
+      this.element = element;
+      this.columns = columns;
+      this.rows = rows;
+      this.x = 0;
+      this.y = 0;
+      this.state = "text";
+      this.csi = "";
+      this.screen = [];
+      this.clear();
+    }
+    Terminal.prototype.blank = function () { return Array(this.columns).fill(" "); };
+    Terminal.prototype.clear = function () {
+      this.screen = [];
+      for (var i = 0; i < this.rows; i++) this.screen.push(this.blank());
+      this.x = 0; this.y = 0; this.render();
+    };
+    Terminal.prototype.scroll = function () {
+      while (this.y >= this.rows) { this.screen.shift(); this.screen.push(this.blank()); this.y--; }
+    };
+    Terminal.prototype.csiCommand = function (command) {
+      var values = this.csi.split(";").map(function (v) { return Number(v || 1); });
+      var amount = values[0] || 1;
+      if (command === "A") this.y = Math.max(0, this.y - amount);
+      else if (command === "B") this.y = Math.min(this.rows - 1, this.y + amount);
+      else if (command === "C") this.x = Math.min(this.columns - 1, this.x + amount);
+      else if (command === "D") this.x = Math.max(0, this.x - amount);
+      else if (command === "H" || command === "f") {
+        this.y = Math.max(0, Math.min(this.rows - 1, (values[0] || 1) - 1));
+        this.x = Math.max(0, Math.min(this.columns - 1, (values[1] || 1) - 1));
+      } else if (command === "J" && (values[0] === 2 || this.csi === "2")) this.clear();
+      else if (command === "K") {
+        for (var i = this.x; i < this.columns; i++) this.screen[this.y][i] = " ";
+      }
+    };
+    Terminal.prototype.feed = function (text) {
+      for (var i = 0; i < text.length; i++) {
+        var ch = text[i];
+        if (this.state === "esc") {
+          if (ch === "[") { this.state = "csi"; this.csi = ""; }
+          else this.state = "text";
+          continue;
+        }
+        if (this.state === "csi") {
+          if ((ch >= "0" && ch <= "9") || ch === ";" || ch === "?") this.csi += ch;
+          else { this.csiCommand(ch); this.state = "text"; }
+          continue;
+        }
+        if (ch === "\x1b") { this.state = "esc"; continue; }
+        if (ch === "\r") { this.x = 0; continue; }
+        if (ch === "\n") { this.y++; this.scroll(); continue; }
+        if (ch === "\b") { this.x = Math.max(0, this.x - 1); continue; }
+        if (ch < " ") continue;
+        this.screen[this.y][this.x] = ch;
+        this.x++;
+        if (this.x >= this.columns) { this.x = 0; this.y++; this.scroll(); }
+      }
+      this.render();
+    };
+    Terminal.prototype.render = function () {
+      var view = this.screen.map(function (line) { return line.join("").replace(/\s+$/, ""); });
+      var line = this.screen[this.y].slice();
+      line[this.x] = "▊";
+      view[this.y] = line.join("").replace(/\s+$/, "");
+      this.element.textContent = view.join("\n");
+      this.element.scrollTop = this.element.scrollHeight;
+    };
+    var terminal = new Terminal($("#terminal"), 100, 28);
+    terminal.feed("MiniOS Web Console\r\nEnter the device address and select CONNECT.\r\n");
+
+    function send(data) {
+      if (socket && socket.readyState === WebSocket.OPEN) socket.send(data);
+    }
+    function connect() {
+      if (socket) socket.close();
+      localStorage.setItem("minios.host", host.value);
+      localStorage.setItem("minios.port", port.value);
+      localStorage.setItem("minios.token", token.value);
+      api("/api/info").then(function (response) { return response.json(); }).then(function (info) {
+        $("#deviceInfo").textContent = info.name + " " + info.version + " · API " + info.api;
+        $("#spaceInfo").textContent = "FS " + formatBytes(info.filesystem.used) + " / " + formatBytes(info.filesystem.total);
+        return loadDirectory("/");
+      }).catch(function (error) { notify("API: " + error.message); });
+      var query = token.value ? "?token=" + encodeURIComponent(token.value) : "";
+      socket = new WebSocket("ws://" + host.value.trim() + ":" + port.value.trim() + "/api/shell" + query);
+      socket.onopen = function () {
+        $("#connectionState").classList.add("connected");
+        $("#stateText").textContent = "CONNECTED";
+        $("#connect").textContent = "RECONNECT";
+        $("#terminal").focus();
+      };
+      socket.onmessage = function (event) { terminal.feed(String(event.data)); };
+      socket.onclose = function () {
+        $("#connectionState").classList.remove("connected");
+        $("#stateText").textContent = "DISCONNECTED";
+      };
+      socket.onerror = function () { notify("Could not open the WebSocket."); };
+    }
+
+    $("#connect").onclick = connect;
+    $("#refresh").onclick = function () { loadDirectory(currentPath); };
+    $("#upload").onclick = function () { $("#filePicker").click(); };
+    $("#filePicker").onchange = function () { uploadFiles(this.files); this.value = ""; };
+    $("#mkdir").onclick = async function () {
+      if (isProtectedPath(currentPath)) return;
+      var name = prompt("New folder name:");
+      if (!name || name.indexOf("/") >= 0) return;
+      try {
+        await api("/api/fs/mkdir?path=" + encodePath(joinPath(currentPath, name)), { method: "POST" });
+        await loadDirectory(currentPath);
+      } catch (error) { notify("Create folder: " + error.message); }
+    };
+    $("#clearTerminal").onclick = function () { terminal.clear(); $("#terminal").focus(); };
+    document.querySelectorAll("[data-send]").forEach(function (button) {
+      button.onclick = function () { send(button.getAttribute("data-send")); $("#terminal").focus(); };
+    });
+    $("#terminal").addEventListener("keydown", function (event) {
+      var map = {
+        Enter: "\r", Backspace: "\x7f", Delete: "\x1b[3~", Tab: "\t",
+        ArrowUp: "\x1b[A", ArrowDown: "\x1b[B", ArrowRight: "\x1b[C", ArrowLeft: "\x1b[D",
+        Home: "\x1b[H", End: "\x1b[F", Escape: "\x1b"
+      };
+      var data = map[event.key];
+      if (event.ctrlKey && event.key.length === 1) data = String.fromCharCode(event.key.toUpperCase().charCodeAt(0) - 64);
+      else if (!event.ctrlKey && !event.altKey && event.key.length === 1) data = event.key;
+      if (data !== undefined) { event.preventDefault(); send(data); }
+    });
+    $("#terminal").addEventListener("paste", function (event) {
+      event.preventDefault();
+      var text = event.clipboardData.getData("text");
+      for (var i = 0; i < text.length; i += 256) send(text.slice(i, i + 256));
+    });
+    ["dragenter", "dragover"].forEach(function (name) {
+      $("#filePanel").addEventListener(name, function (event) {
+        event.preventDefault();
+        if (!isProtectedPath(currentPath)) this.classList.add("drop-active");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (name) {
+      $("#filePanel").addEventListener(name, function (event) { event.preventDefault(); this.classList.remove("drop-active"); });
+    });
+    $("#filePanel").addEventListener("drop", function (event) {
+      if (isProtectedPath(currentPath)) {
+        notify("This namespace is read-only.");
+        return;
+      }
+      uploadFiles(event.dataTransfer.files);
+    });
+
+    host.value = localStorage.getItem("minios.host") || host.value;
+    port.value = localStorage.getItem("minios.port") || port.value;
+    token.value = localStorage.getItem("minios.token") || "";
+    drawCrumbs();
+    updateFileActions();
+  }());
+  </script>
+</body>
+</html>
